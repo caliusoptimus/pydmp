@@ -31,8 +31,17 @@ RECORD_009 = (
 RECORD_011 = (
     b"011NT01Y00000000NNN---------00-000S-000SA000SA000S1N1N6NNY0000000003NYN4LN---00000N0F--N3333333333K1"
 )
+RECORD_012_CUSTOM_TYPE = (
+    b"012--01Y00000000NNN---------00-000S-000SA000SA000S1N1N6NNY0000000003NYN4LN---00000N0F--N0000000000CUSTOM"
+)
 RECORD_500_LIVE = (
     b"500FI00NFF000000NNN--------Y00-000S-000ST000SA000S1N1N6NNN0738531803NNN4LN---00000N0F--N0000000000-NBASEMENT SMOKE"
+)
+RECORD_500_XR550_A1 = (
+    b"500A101N00000000NNN--------Y00-000S-000S-000S-000S1N1N3NNN0110326412NNN2LY---00000N0F--N0000000000-NW1"
+)
+RECORD_550_EXPANDER_WIRED = (
+    b"550NT03Y00000000NNN--------N00-000S-000SA000SA000S1N1N6NNY0000000003NYN4LN---00000N0F--N0000000000ZE1"
 )
 
 
@@ -112,10 +121,18 @@ def test_parse_zone_settings_page_decodes_known_direct_record():
     assert record.number == "001"
     assert record.type_code == "EX"
     assert record.area == "01"
+    assert record.swinger_bypass == "Y"
     assert record.flag_07 == "Y"
+    assert record.keypad_bitmask == "FFFFFFFF"
     assert record.nibble_word_08_0f == "FFFFFFFF"
+    assert record.retard == "N"
+    assert record.fire_panel_slave == "N"
+    assert record.priority == "N"
+    assert record.arming_zone_special_word == "--------"
     assert record.special_word_13_1a == "--------"
+    assert record.dmp_wireless == "-"
     assert record.marker_1b == "-"
+    assert record.report_with_account_area == "00"
     assert record.type_field_1c_1d == "00"
     assert record.disarmed_open_action == "none"
     assert record.disarmed_open_output == "none"
@@ -130,17 +147,41 @@ def test_parse_zone_settings_page_decodes_known_direct_record():
     assert record.armed_short_output == "none"
     assert record.armed_short_output_mode == "S"
     assert record.entry_delay_number == "1"
+    assert record.fast_response == "N"
+    assert record.fixed_literal_34 == "1"
     assert record.literal_34 == "1"
+    assert record.cross_zone == "N"
+    assert record.supervision_time_code == "6"
     assert record.display_option == "6"
+    assert record.transmitter_contact_high_bit == "N"
+    assert record.disarm_disable == "N"
+    assert record.normally_open == "Y"
+    assert record.transmitter_serial == "00000000"
     assert record.reference8 == "00000000"
+    assert record.transmitter_contact_index == "0"
     assert record.numeric_42 == "0"
+    assert record.supervision_time_index == "3"
     assert record.numeric_43 == "3"
+    assert record.led_operation == "N"
+    assert record.normally_open_duplicate == "Y"
+    assert record.disarm_disable_duplicate == "N"
     assert record.pir_pulse_count == "4"
     assert record.pir_sensitivity == "L"
+    assert record.zone_real_time_status == "Y"
+    assert record.filler_4a_4c == "---"
+    assert record.follow_area == "00"
+    assert record.zone_audit_days == "000"
+    assert record.traffic_count == "N"
+    assert record.chime == "1"
+    assert record.wireless_pir_pet_immunity == "F"
     assert record.flag_54 == "F"
+    assert record.lockdown == "-"
     assert record.type5_flag_55 == "-"
+    assert record.internal_type5_slot == "-"
     assert record.slot_56 == "-"
+    assert record.compatible_wireless == "N"
     assert record.reference_mode_57 == "N"
+    assert record.expander_serial == "0000000000"
     assert record.reference10 == "0000000000"
     assert record.name == "DOOR1"
     assert record.unused is False
@@ -202,6 +243,37 @@ def test_parse_zone_settings_page_handles_live_fire_record_tail_variant():
     assert [record.number for record in page.records] == ["500"]
     assert page.records[0].name_prefix == "-N"
     assert page.records[0].name == "BASEMENT SMOKE"
+    assert page.records[0].dmp_wireless == "Y"
+    assert page.records[0].transmitter_serial == "07385318"
+
+
+def test_parse_zone_settings_page_accepts_auxiliary_one_type_code():
+    reply = b"\x02@ 12345*ZL" + RECORD_500_XR550_A1 + b"\x1e\r\x00"
+
+    page = parse_zone_settings_page(reply)
+
+    assert page.has_terminal_marker is False
+    assert [record.number for record in page.records] == ["500"]
+    assert page.records[0].type_code == "A1"
+    assert page.records[0].area == "01"
+    assert page.records[0].dmp_wireless == "Y"
+    assert page.records[0].compatible_wireless == "N"
+    assert page.records[0].transmitter_serial == "01103264"
+    assert page.records[0].name_prefix == "-N"
+    assert page.records[0].name == "W1"
+
+
+def test_parse_zone_settings_page_handles_wired_714_expander_anchor():
+    reply = b"\x02@ 12345*ZL" + RECORD_550_EXPANDER_WIRED + b"\x1e\r\x00"
+
+    page = parse_zone_settings_page(reply)
+
+    assert page.has_terminal_marker is False
+    assert [record.number for record in page.records] == ["550"]
+    assert page.records[0].dmp_wireless == "N"
+    assert page.records[0].transmitter_serial == "00000000"
+    assert page.records[0].expander_serial == "0000000000"
+    assert page.records[0].name == "ZE1"
 
 
 def test_parse_zone_settings_reply_handles_lowercase_skip_ahead_not_found():
@@ -262,14 +334,28 @@ def test_parse_zone_settings_reply_handles_live_fire_record_tail_variant():
     assert parsed.zone.name == "BASEMENT SMOKE"
 
 
-def test_parse_zone_settings_page_accepts_nonzero_reference10_and_keypad_name():
+def test_parse_zone_settings_page_accepts_nonzero_expander_serial_and_keypad_name():
     reply = b"\x02@ 12345*Zl" + RECORD_011 + b"\x1e---\r\x00"
 
     page = parse_zone_settings_page(reply)
 
     assert [record.number for record in page.records] == ["011"]
+    assert page.records[0].expander_serial == "3333333333"
     assert page.records[0].reference10 == "3333333333"
     assert page.records[0].name == "K1"
+
+
+def test_parse_zone_settings_page_accepts_unconfigured_type_pair():
+    reply = b"\x02@ 12345*ZL" + RECORD_012_CUSTOM_TYPE + b"\x1e\r\x00"
+
+    page = parse_zone_settings_page(reply)
+
+    assert [record.number for record in page.records] == ["012"]
+    assert page.records[0].type_code == "--"
+    assert page.records[0].name == "CUSTOM"
+    assert page.records[0].unconfigured is True
+    assert page.records[0].unused is True
+    assert page.records[0].monitored is False
 
 
 @pytest.mark.parametrize(
@@ -282,6 +368,8 @@ def test_parse_zone_settings_page_accepts_nonzero_reference10_and_keypad_name():
         b"\x02@ 12345*ZL" + RECORD_001[:5] + b"33" + RECORD_001[7:] + b"\x1e\r\x00",
         b"\x02@ 12345*ZL" + RECORD_001[:8] + b"GFFFFFFF" + RECORD_001[16:] + b"\x1e\r\x00",
         b"\x02@ 12345*ZL" + RECORD_001[:50] + b"5" + RECORD_001[51:] + b"\x1e\r\x00",
+        b"\x02@ 12345*ZL" + RECORD_001[:79] + b"366" + RECORD_001[82:] + b"\x1e\r\x00",
+        b"\x02@ 12345*ZL" + RECORD_001[:83] + b"4" + RECORD_001[84:] + b"\x1e\r\x00",
         b"\x02@ 12345*ZL" + RECORD_001[:98] + (b"A" * 33) + b"\x1e\r\x00",
         b"\x02@ 12345*Zl" + RECORD_001 + b"\x1e\x1e---\r\x00",
         b"\x02@ 12345*Zl" + RECORD_001 + b"\x1e---\x1e" + RECORD_002 + b"\x1e\r\x00",

@@ -117,7 +117,22 @@ def format_bytes_for_cli(data: bytes | None) -> str:
     """Render wire bytes in a readable escaped form for CLI output."""
     if data is None:
         return "<none>"
-    return data.decode("ascii", errors="backslashreplace")
+
+    rendered = []
+    for byte in data:
+        if byte == 0x09:
+            rendered.append("\\t")
+        elif byte == 0x0A:
+            rendered.append("\\n")
+        elif byte == 0x0D:
+            rendered.append("\\r")
+        elif byte == 0x5C:
+            rendered.append("\\\\")
+        elif 0x20 <= byte <= 0x7E:
+            rendered.append(chr(byte))
+        else:
+            rendered.append(f"\\x{byte:02x}")
+    return "".join(rendered)
 
 
 def print_transaction_wire_data(wire_requests: list[bytes], wire_responses: list[bytes]) -> None:
@@ -132,6 +147,27 @@ def print_transaction_wire_data(wire_requests: list[bytes], wire_responses: list
 def normalize_name_for_display(name: str) -> str:
     """Give blank names a visible placeholder in tables."""
     return name if name else "<blank>"
+
+
+def print_zone_status_reply(reply) -> None:
+    """Print a parsed zone-status style reply in a compact table."""
+    print(f"complete: {reply.complete}")
+    print(f"areas: {len(reply.areas)}")
+    print(f"zones: {len(reply.zones)}")
+    print(f"raw replies: {len(reply.raw_replies)}")
+
+    if reply.areas:
+        print()
+        print("area  state unknown scheduleActive lateToClose name")
+        print("----  ----- ------- -------------- ----------- ----")
+        for area in reply.areas:
+            print(f"{area.number:>4}  {area.state:^5} {area.unknown:^7} {area.schedule_active:^14} {area.late_to_close:^11} {normalize_name_for_display(area.name)}")
+
+    print()
+    print("zone  area  status name")
+    print("----  ----  ------ ----")
+    for zone in reply.zones:
+        print(f"{zone.number:>4}  {zone.area_number:>4}  {zone.status:^6} {normalize_name_for_display(zone.name)}")
 
 
 def make_timestamp_label() -> str:

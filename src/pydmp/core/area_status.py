@@ -318,4 +318,7 @@ def _extract_area_payload(reply: bytes) -> bytes:
             continue
         return reply[index + len(marker) :]
 
+    if b"-WA" in reply or b"-W" in reply:
+        raise SessionProtocolError(f"Panel denied ?WA request: {reply!r}")
+
     raise SessionProtocolError("Reply did not contain a WA marker")

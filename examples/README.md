@@ -102,32 +102,38 @@ receive nothing.
    - Smallest read example.
    - Uses the beginner-friendly `CorePanelClient`.
 2. `query_zones.py`
-   - Shows a larger paged query and prints both areas and zones.
-3. `query_area_settings.py`
+   - Shows the backwards-compatible full zone snapshot transaction.
+3. `query_all_areas_and_zones.py`
+   - Shows the explicit full area-and-zone snapshot alias.
+4. `query_specific_zones.py`
+   - Shows one seeded `?WB` area/wildcard sweep.
+5. `query_area_settings.py`
    - Shows direct `CommandSessionManager` + transaction usage.
-4. `query_zone_settings.py`
+6. `query_zone_settings.py`
    - Shows a direct single-record settings read.
-5. `query_users.py`
+7. `query_users.py`
    - Walks the visible user table.
-6. `query_profiles.py`
+8. `query_profiles.py`
    - Walks the visible profile table.
-7. `query_outputs.py`
+9. `query_outputs.py`
    - Shows the output query options, including namespace selection.
-8. `query_lockout_code.py`
+10. `query_system_options.py`
+   - Reads the packed `?Zo` System Options record.
+11. `query_lockout_code.py`
    - Shows a very small read transaction.
-9. `listen.py`
+12. `listen.py`
    - Starts the push listener, prints messages to the terminal, and writes a log file.
-10. `sensor_reset.py`
-11. `arm_areas.py`
-12. `disarm_areas.py`
-13. `bypass_zone.py`
-14. `unbypass_zone.py`
-15. `set_output.py`
+13. `sensor_reset.py`
+14. `arm_areas.py`
+15. `disarm_areas.py`
+16. `bypass_zone.py`
+17. `unbypass_zone.py`
+18. `set_output.py`
 
 The intended flow is:
 
-- work through `1` to `9` first
-- move on to `10` to `15` only after the read-only and monitoring examples are working as expected
+- work through `1` to `12` first
+- move on to `13` to `18` only after the read-only and monitoring examples are working as expected
 
 ## Transaction-to-Example Map
 
@@ -137,11 +143,14 @@ There is now one example script for each public transaction in `pydmp.core`.
 
 - `TransactionQueryAreas` -> `query_areas.py`
 - `TransactionQueryZones` -> `query_zones.py`
+- `TransactionQueryAllAreasAndZones` -> `query_all_areas_and_zones.py`
+- `TransactionQuerySpecificZones` -> `query_specific_zones.py`
 - `TransactionQueryAreaSettings` -> `query_area_settings.py`
 - `TransactionQueryZoneSettings` -> `query_zone_settings.py`
 - `TransactionQueryUsers` -> `query_users.py`
 - `TransactionQueryProfiles` -> `query_profiles.py`
 - `TransactionQueryOutputs` -> `query_outputs.py`
+- `TransactionQuerySystemOptions` -> `query_system_options.py`
 - `TransactionQueryLockoutCode` -> `query_lockout_code.py`
 - push listener / monitoring -> `listen.py`
 
@@ -183,8 +192,17 @@ Start here. These examples are intended to observe panel state, not change it.
   - `python3 query_areas.py --host 192.168.1.123 --port 8011 --account 12345`
 
 - `query_zones.py`
-  - Reads the full area and zone snapshot.
+  - Reads the full area and zone snapshot through `TransactionQueryZones`.
   - `python3 query_zones.py --host 192.168.1.123 --port 8011 --account 12345`
+
+- `query_all_areas_and_zones.py`
+  - Reads the full area and zone snapshot through `TransactionQueryAllAreasAndZones`.
+  - `python3 query_all_areas_and_zones.py --host 192.168.1.123 --port 8011 --account 12345`
+
+- `query_specific_zones.py`
+  - Reads one seeded `?WB` sweep through `TransactionQuerySpecificZones`.
+  - `python3 query_specific_zones.py --host 192.168.1.123 --port 8011 --account 12345 --area 01 --start-zone 001`
+  - `python3 query_specific_zones.py --host 192.168.1.123 --port 8011 --account 12345 --area 01 --start-zone 500 --end-zone 550 --no-global-zones --show-raw`
 
 - `query_area_settings.py`
   - Reads one `?Za` area-settings record.
@@ -206,6 +224,10 @@ Start here. These examples are intended to observe panel state, not change it.
   - Reads output status from `?WQ`.
   - `python3 query_outputs.py --host 192.168.1.123 --port 8011 --account 12345`
   - `python3 query_outputs.py --host 192.168.1.123 --port 8011 --account 12345 --namespace D --include-unnamed`
+
+- `query_system_options.py`
+  - Reads the packed `?Zo` System Options record.
+  - `python3 query_system_options.py --host 192.168.1.123 --port 8011 --account 12345`
 
 - `query_lockout_code.py`
   - Reads the programmer lockout code through `?ZZ`.

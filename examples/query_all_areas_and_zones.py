@@ -1,4 +1,4 @@
-"""Query the full area and zone snapshot with `TransactionQueryZones`."""
+"""Query the full area and zone snapshot with `TransactionQueryAllAreasAndZones`."""
 
 from __future__ import annotations
 
@@ -11,12 +11,14 @@ from _example_support import (
     print_zone_status_reply,
     run_async_entrypoint,
 )
-from pydmp.core import TransactionQueryZones, ZoneStatusReply
+from pydmp.core import TransactionQueryAllAreasAndZones, ZoneStatusReply
 
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI parser for this example."""
-    parser = argparse.ArgumentParser(description="Query all areas and zones with TransactionQueryZones.")
+    parser = argparse.ArgumentParser(
+        description="Query all areas and zones with TransactionQueryAllAreasAndZones."
+    )
     add_common_command_arguments(parser)
     return parser
 
@@ -27,10 +29,10 @@ async def async_main() -> int:
     manager = build_manager_from_args(args)
 
     try:
-        transaction = await manager.submit(TransactionQueryZones())
+        transaction = await manager.submit(TransactionQueryAllAreasAndZones())
         reply = transaction.parsed_response
         if not isinstance(reply, ZoneStatusReply):
-            raise ValueError("Zone transaction completed without a parsed reply")
+            raise ValueError("All-areas-and-zones transaction completed without a parsed reply")
 
         print_zone_status_reply(reply)
 
@@ -43,7 +45,7 @@ async def async_main() -> int:
 
 
 def main() -> int:
-    """Synchronous entrypoint used by `python3 query_zones.py`."""
+    """Synchronous entrypoint used by `python3 query_all_areas_and_zones.py`."""
     return run_async_entrypoint(async_main)
 
 

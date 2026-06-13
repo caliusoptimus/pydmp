@@ -24,27 +24,28 @@ ZONE_SETTINGS_PIR_PULSE_VALUES = frozenset("24")
 ZONE_SETTINGS_PIR_SENSITIVITY_VALUES = frozenset("LH")
 ZONE_SETTINGS_ENTRY_DELAY_VALUES = frozenset("1234")
 ZONE_SETTINGS_NAME_PREFIX_FLAGS = frozenset("YN")
+ZONE_SETTINGS_ALPHANUMERIC_TYPE_CODES = frozenset({"A1", "A2"})
 
 
 @dataclass(slots=True)
 class ZoneSettingsRecord:
     """One decoded zone-settings row from a `?ZL` or `?Zl` reply.
 
-    Known fields are broken out directly. Bytes whose product meaning is still
-    open keep neutral names so callers can inspect them without us guessing.
+    Known fields are exposed with product-facing names from the firmware-backed
+    `?ZL` map. Compatibility aliases preserve the older offset-style names.
     """
 
     number: str
     type_code: str
     area: str
-    flag_07: str
-    nibble_word_08_0f: str
-    flag_10: str
-    flag_11: str
-    flag_12: str
-    special_word_13_1a: str
-    marker_1b: str
-    type_field_1c_1d: str
+    swinger_bypass: str
+    keypad_bitmask: str
+    retard: str
+    fire_panel_slave: str
+    priority: str
+    arming_zone_special_word: str
+    dmp_wireless: str
+    report_with_account_area: str
     disarmed_open_action: str
     disarmed_open_output: str
     disarmed_open_output_mode: str
@@ -58,39 +59,204 @@ class ZoneSettingsRecord:
     armed_short_output: str
     armed_short_output_mode: str
     entry_delay_number: str
-    flag_33: str
-    literal_34: str
-    flag_35: str
-    display_option: str
-    flag_37: str
-    flag_38: str
-    flag_39: str
-    reference8: str
-    numeric_42: str
-    numeric_43: str
-    flag_44: str
-    flag_45: str
-    flag_46: str
+    fast_response: str
+    fixed_literal_34: str
+    cross_zone: str
+    supervision_time_code: str
+    transmitter_contact_high_bit: str
+    disarm_disable: str
+    normally_open: str
+    transmitter_serial: str
+    transmitter_contact_index: str
+    supervision_time_index: str
+    led_operation: str
+    normally_open_duplicate: str
+    disarm_disable_duplicate: str
     pir_pulse_count: str
     pir_sensitivity: str
-    flag_49: str
+    zone_real_time_status: str
     filler_4a_4c: str
-    type_field_4d_4e: str
-    type_field_4f_51: str
-    flag_52: str
-    numeric_53: str
-    flag_54: str
-    type5_flag_55: str
-    slot_56: str
-    reference_mode_57: str
-    reference10: str
+    follow_area: str
+    zone_audit_days: str
+    traffic_count: str
+    chime: str
+    wireless_pir_pet_immunity: str
+    lockdown: str
+    internal_type5_slot: str
+    compatible_wireless: str
+    expander_serial: str
     name: str
     name_prefix: str = ""
 
     @property
     def unused(self) -> bool:
-        """Return True for the known direct-read unused/default row shape."""
-        return self.type_code == "UN" or self.name == "* UNUSED *"
+        """Return True for rows that are not active monitored zone definitions."""
+        return self.unconfigured or self.type_code == "UN" or self.name == "* UNUSED *"
+
+    @property
+    def unconfigured(self) -> bool:
+        """Return True for the `--` type, which the panel does not monitor."""
+        return self.type_code == "--"
+
+    @property
+    def monitored(self) -> bool:
+        """Return True when the panel should consider this row a configured zone."""
+        return not self.unused
+
+    @property
+    def flag_07(self) -> str:
+        """Compatibility alias for `swinger_bypass`."""
+        return self.swinger_bypass
+
+    @property
+    def nibble_word_08_0f(self) -> str:
+        """Compatibility alias for the prewarn/presignal keypad bitmask."""
+        return self.keypad_bitmask
+
+    @property
+    def flag_10(self) -> str:
+        """Compatibility alias for `retard`."""
+        return self.retard
+
+    @property
+    def flag_11(self) -> str:
+        """Compatibility alias for `fire_panel_slave`."""
+        return self.fire_panel_slave
+
+    @property
+    def flag_12(self) -> str:
+        """Compatibility alias for `priority`."""
+        return self.priority
+
+    @property
+    def special_word_13_1a(self) -> str:
+        """Compatibility alias for `arming_zone_special_word`."""
+        return self.arming_zone_special_word
+
+    @property
+    def marker_1b(self) -> str:
+        """Compatibility alias for the formerly unnamed DMP wireless field."""
+        return self.dmp_wireless
+
+    @property
+    def type_field_1c_1d(self) -> str:
+        """Compatibility alias for `report_with_account_area`."""
+        return self.report_with_account_area
+
+    @property
+    def flag_33(self) -> str:
+        """Compatibility alias for `fast_response`."""
+        return self.fast_response
+
+    @property
+    def literal_34(self) -> str:
+        """Compatibility alias for `fixed_literal_34`."""
+        return self.fixed_literal_34
+
+    @property
+    def flag_35(self) -> str:
+        """Compatibility alias for `cross_zone`."""
+        return self.cross_zone
+
+    @property
+    def display_option(self) -> str:
+        """Compatibility alias for `supervision_time_code`."""
+        return self.supervision_time_code
+
+    @property
+    def flag_37(self) -> str:
+        """Compatibility alias for `transmitter_contact_high_bit`."""
+        return self.transmitter_contact_high_bit
+
+    @property
+    def flag_38(self) -> str:
+        """Compatibility alias for `disarm_disable`."""
+        return self.disarm_disable
+
+    @property
+    def flag_39(self) -> str:
+        """Compatibility alias for `normally_open`."""
+        return self.normally_open
+
+    @property
+    def reference8(self) -> str:
+        """Compatibility alias for the transmitter serial field."""
+        return self.transmitter_serial
+
+    @property
+    def numeric_42(self) -> str:
+        """Compatibility alias for `transmitter_contact_index`."""
+        return self.transmitter_contact_index
+
+    @property
+    def numeric_43(self) -> str:
+        """Compatibility alias for `supervision_time_index`."""
+        return self.supervision_time_index
+
+    @property
+    def flag_44(self) -> str:
+        """Compatibility alias for `led_operation`."""
+        return self.led_operation
+
+    @property
+    def flag_45(self) -> str:
+        """Compatibility alias for `normally_open_duplicate`."""
+        return self.normally_open_duplicate
+
+    @property
+    def flag_46(self) -> str:
+        """Compatibility alias for `disarm_disable_duplicate`."""
+        return self.disarm_disable_duplicate
+
+    @property
+    def flag_49(self) -> str:
+        """Compatibility alias for `zone_real_time_status`."""
+        return self.zone_real_time_status
+
+    @property
+    def type_field_4d_4e(self) -> str:
+        """Compatibility alias for `follow_area`."""
+        return self.follow_area
+
+    @property
+    def type_field_4f_51(self) -> str:
+        """Compatibility alias for `zone_audit_days`."""
+        return self.zone_audit_days
+
+    @property
+    def flag_52(self) -> str:
+        """Compatibility alias for `traffic_count`."""
+        return self.traffic_count
+
+    @property
+    def numeric_53(self) -> str:
+        """Compatibility alias for `chime`."""
+        return self.chime
+
+    @property
+    def flag_54(self) -> str:
+        """Compatibility alias for `wireless_pir_pet_immunity`."""
+        return self.wireless_pir_pet_immunity
+
+    @property
+    def type5_flag_55(self) -> str:
+        """Compatibility alias for `lockdown`."""
+        return self.lockdown
+
+    @property
+    def slot_56(self) -> str:
+        """Compatibility alias for `internal_type5_slot`."""
+        return self.internal_type5_slot
+
+    @property
+    def reference_mode_57(self) -> str:
+        """Compatibility alias for `compatible_wireless`."""
+        return self.compatible_wireless
+
+    @property
+    def reference10(self) -> str:
+        """Compatibility alias for the expander serial field."""
+        return self.expander_serial
 
 
 @dataclass(slots=True)
@@ -261,25 +427,33 @@ def _parse_zone_settings_record(raw_record: bytes) -> ZoneSettingsRecord:
         number=f"{number_value:03d}",
         type_code=_parse_zone_type(fixed[3:5], raw_record=raw_record),
         area=f"{area_value:02d}",
-        flag_07=_parse_flag(fixed[7:8], raw_record=raw_record, label="flag 0x07"),
-        nibble_word_08_0f=_parse_hex_text(
+        swinger_bypass=_parse_flag(fixed[7:8], raw_record=raw_record, label="swinger bypass"),
+        keypad_bitmask=_parse_hex_text(
             fixed[8:16],
             raw_record=raw_record,
-            label="nibble word 0x08..0x0f",
+            label="keypad bitmask",
         ),
-        flag_10=_parse_flag(fixed[16:17], raw_record=raw_record, label="flag 0x10"),
-        flag_11=_parse_flag(fixed[17:18], raw_record=raw_record, label="flag 0x11"),
-        flag_12=_parse_flag(fixed[18:19], raw_record=raw_record, label="flag 0x12"),
-        special_word_13_1a=_decode_ascii(
+        retard=_parse_flag(fixed[16:17], raw_record=raw_record, label="retard"),
+        fire_panel_slave=_parse_flag(
+            fixed[17:18],
+            raw_record=raw_record,
+            label="fire panel slave",
+        ),
+        priority=_parse_flag(fixed[18:19], raw_record=raw_record, label="priority"),
+        arming_zone_special_word=_decode_ascii(
             fixed[19:27],
             raw_record=raw_record,
-            label="special word 0x13..0x1a",
+            label="arming-zone special word",
         ),
-        marker_1b=_decode_ascii(fixed[27:28], raw_record=raw_record, label="marker 0x1b"),
-        type_field_1c_1d=_parse_digit_text(
+        dmp_wireless=_decode_ascii(
+            fixed[27:28],
+            raw_record=raw_record,
+            label="DMP wireless flag",
+        ),
+        report_with_account_area=_parse_digit_text(
             fixed[28:30],
             raw_record=raw_record,
-            label="type field 0x1c..0x1d",
+            label="report with account area",
         ),
         disarmed_open_action=disarmed_open_action,
         disarmed_open_output=disarmed_open_output,
@@ -299,34 +473,54 @@ def _parse_zone_settings_record(raw_record: bytes) -> ZoneSettingsRecord:
             label="entry delay number",
             values=ZONE_SETTINGS_ENTRY_DELAY_VALUES,
         ),
-        flag_33=_parse_flag(fixed[51:52], raw_record=raw_record, label="flag 0x33"),
-        literal_34=_decode_ascii(fixed[52:53], raw_record=raw_record, label="literal 0x34"),
-        flag_35=_parse_flag(fixed[53:54], raw_record=raw_record, label="flag 0x35"),
-        display_option=_parse_display_option(
+        fast_response=_parse_flag(fixed[51:52], raw_record=raw_record, label="fast response"),
+        fixed_literal_34=_decode_ascii(fixed[52:53], raw_record=raw_record, label="literal 0x34"),
+        cross_zone=_parse_flag(fixed[53:54], raw_record=raw_record, label="cross zone"),
+        supervision_time_code=_parse_supervision_time_code(
             fixed[54:55],
             raw_record=raw_record,
         ),
-        flag_37=_parse_flag(fixed[55:56], raw_record=raw_record, label="flag 0x37"),
-        flag_38=_parse_flag(fixed[56:57], raw_record=raw_record, label="flag 0x38"),
-        flag_39=_parse_flag(fixed[57:58], raw_record=raw_record, label="flag 0x39"),
-        reference8=_decode_ascii(fixed[58:66], raw_record=raw_record, label="reference8"),
-        numeric_42=_parse_digit_in_range(
+        transmitter_contact_high_bit=_parse_flag(
+            fixed[55:56],
+            raw_record=raw_record,
+            label="transmitter contact high bit",
+        ),
+        disarm_disable=_parse_flag(
+            fixed[56:57],
+            raw_record=raw_record,
+            label="disarm disable",
+        ),
+        normally_open=_parse_flag(fixed[57:58], raw_record=raw_record, label="normally open"),
+        transmitter_serial=_decode_ascii(
+            fixed[58:66],
+            raw_record=raw_record,
+            label="transmitter serial",
+        ),
+        transmitter_contact_index=_parse_digit_in_range(
             fixed[66:67],
             raw_record=raw_record,
-            label="numeric 0x42",
+            label="transmitter contact index",
             minimum=0,
             maximum=3,
         ),
-        numeric_43=_parse_digit_in_range(
+        supervision_time_index=_parse_digit_in_range(
             fixed[67:68],
             raw_record=raw_record,
-            label="numeric 0x43",
+            label="supervision time index",
             minimum=0,
             maximum=7,
         ),
-        flag_44=_parse_flag(fixed[68:69], raw_record=raw_record, label="flag 0x44"),
-        flag_45=_parse_flag(fixed[69:70], raw_record=raw_record, label="flag 0x45"),
-        flag_46=_parse_flag(fixed[70:71], raw_record=raw_record, label="flag 0x46"),
+        led_operation=_parse_flag(fixed[68:69], raw_record=raw_record, label="LED operation"),
+        normally_open_duplicate=_parse_flag(
+            fixed[69:70],
+            raw_record=raw_record,
+            label="normally open duplicate",
+        ),
+        disarm_disable_duplicate=_parse_flag(
+            fixed[70:71],
+            raw_record=raw_record,
+            label="disarm disable duplicate",
+        ),
         pir_pulse_count=_decode_enum(
             fixed[71:72],
             raw_record=raw_record,
@@ -339,44 +533,55 @@ def _parse_zone_settings_record(raw_record: bytes) -> ZoneSettingsRecord:
             label="PIR sensitivity",
             values=ZONE_SETTINGS_PIR_SENSITIVITY_VALUES,
         ),
-        flag_49=_parse_flag(fixed[73:74], raw_record=raw_record, label="flag 0x49"),
+        zone_real_time_status=_parse_flag(
+            fixed[73:74],
+            raw_record=raw_record,
+            label="zone real-time status",
+        ),
         filler_4a_4c=_decode_ascii(fixed[74:77], raw_record=raw_record, label="filler 0x4a..0x4c"),
-        type_field_4d_4e=_parse_digit_text(
+        follow_area=_parse_digit_text(
             fixed[77:79],
             raw_record=raw_record,
-            label="type field 0x4d..0x4e",
+            label="follow area",
         ),
-        type_field_4f_51=_parse_digit_text(
+        zone_audit_days=_parse_zone_audit_days(
             fixed[79:82],
             raw_record=raw_record,
-            label="type field 0x4f..0x51",
         ),
-        flag_52=_parse_flag(fixed[82:83], raw_record=raw_record, label="flag 0x52"),
-        numeric_53=_parse_digit_in_range(
+        traffic_count=_parse_flag(fixed[82:83], raw_record=raw_record, label="traffic count"),
+        chime=_parse_digit_in_range(
             fixed[83:84],
             raw_record=raw_record,
-            label="numeric 0x53",
+            label="chime",
             minimum=0,
-            maximum=7,
+            maximum=3,
         ),
-        flag_54=_decode_enum(
+        wireless_pir_pet_immunity=_decode_enum(
             fixed[84:85],
             raw_record=raw_record,
-            label="flag 0x54",
+            label="wireless PIR pet immunity",
             values=ZONE_SETTINGS_FLAG54_VALUES,
         ),
-        type5_flag_55=_decode_ascii(
+        lockdown=_decode_ascii(
             fixed[85:86],
             raw_record=raw_record,
-            label="type5 flag 0x55",
+            label="lockdown",
         ),
-        slot_56=_decode_ascii(fixed[86:87], raw_record=raw_record, label="slot 0x56"),
-        reference_mode_57=_parse_flag(
+        internal_type5_slot=_decode_ascii(
+            fixed[86:87],
+            raw_record=raw_record,
+            label="internal type-5 slot",
+        ),
+        compatible_wireless=_parse_flag(
             fixed[87:88],
             raw_record=raw_record,
-            label="reference mode 0x57",
+            label="compatible wireless",
         ),
-        reference10=_decode_ascii(fixed[88:98], raw_record=raw_record, label="reference10"),
+        expander_serial=_decode_ascii(
+            fixed[88:98],
+            raw_record=raw_record,
+            label="expander serial",
+        ),
         name=name,
         name_prefix=name_prefix,
     )
@@ -397,7 +602,11 @@ def _parse_action_group_fields(
 
 def _parse_zone_type(raw_value: bytes, *, raw_record: bytes) -> str:
     type_code = _decode_ascii(raw_value, raw_record=raw_record, label="zone type")
-    if len(type_code) != 2 or not type_code.isalpha() or not type_code.isupper():
+    if len(type_code) != 2:
+        raise SessionProtocolError(f"Malformed ?ZL zone type: {raw_record!r}")
+    if type_code == "--" or type_code in ZONE_SETTINGS_ALPHANUMERIC_TYPE_CODES:
+        return type_code
+    if not type_code.isalpha() or not type_code.isupper():
         raise SessionProtocolError(f"Malformed ?ZL zone type: {raw_record!r}")
     return type_code
 
@@ -411,13 +620,17 @@ def _parse_flag(raw_value: bytes, *, raw_record: bytes, label: str) -> str:
     )
 
 
-def _parse_display_option(raw_value: bytes, *, raw_record: bytes) -> str:
-    display_option = _decode_ascii(raw_value, raw_record=raw_record, label="display option")
-    if len(display_option) != 1 or (
-        not display_option.isalnum() and display_option != "-"
+def _parse_supervision_time_code(raw_value: bytes, *, raw_record: bytes) -> str:
+    supervision_time_code = _decode_ascii(
+        raw_value,
+        raw_record=raw_record,
+        label="supervision time code",
+    )
+    if len(supervision_time_code) != 1 or (
+        not supervision_time_code.isalnum() and supervision_time_code != "-"
     ):
-        raise SessionProtocolError(f"Malformed ?ZL display option: {raw_record!r}")
-    return display_option
+        raise SessionProtocolError(f"Malformed ?ZL supervision time code: {raw_record!r}")
+    return supervision_time_code
 
 
 def _parse_hex_text(raw_value: bytes, *, raw_record: bytes, label: str) -> str:
@@ -436,6 +649,13 @@ def _parse_digit_text(
     value = _decode_ascii(raw_value, raw_record=raw_record, label=label)
     if not value.isdigit():
         raise SessionProtocolError(f"Malformed ?ZL {label}: {raw_record!r}")
+    return value
+
+
+def _parse_zone_audit_days(raw_value: bytes, *, raw_record: bytes) -> str:
+    value = _parse_digit_text(raw_value, raw_record=raw_record, label="zone audit days")
+    if int(value, 10) > 365:
+        raise SessionProtocolError(f"Malformed ?ZL zone audit days: {raw_record!r}")
     return value
 
 
@@ -534,5 +754,8 @@ def _extract_zone_settings_payload(reply: bytes) -> bytes:
         if index == -1:
             continue
         return reply[index + len(marker) :]
+
+    if b"-ZL" in reply or b"-Zl" in reply or b"-Z" in reply:
+        raise SessionProtocolError(f"Panel denied ?ZL request: {reply!r}")
 
     raise SessionProtocolError("Reply did not contain a ZL marker")

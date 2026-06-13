@@ -7,6 +7,8 @@ from pydmp.core import (
     PanelEndpoint,
     SessionProtocolError,
     SessionProfileBlankV2,
+    TransactionQueryAllAreasAndZones,
+    TransactionQuerySpecificZones,
     TransactionQueryZones,
     ZoneStatusPage,
     ZoneStatusReply,
@@ -144,6 +146,100 @@ def test_parse_zone_status_page_rejects_missing_marker():
 def test_parse_zone_status_page_rejects_malformed_records(reply):
     with pytest.raises(SessionProtocolError):
         parse_zone_status_page(reply)
+
+
+def test_transaction_query_all_areas_and_zones_is_explicit_full_snapshot_alias():
+    transaction = TransactionQueryAllAreasAndZones()
+
+    assert isinstance(transaction, TransactionQueryZones)
+    assert transaction.label == "query_all_areas_and_zones"
+
+
+@pytest.mark.asyncio
+async def test_transaction_query_specific_zones_runs_one_area_seeded_sweep_with_range_filter():
+    factory, transports = make_transport_factory(
+        scripted_replies=[
+            b"\x02@ 12345+V02012345\r",
+            (
+                b"\x02@ 12345*WBA001DPERIMETER\x1eL499NBEFORE\x1e"
+                b"L500NDOOR500\x1eL501OWINDOW501\x1eL502SZONE502\x1e"
+                b"L503NAFTER\x1e-\r\x00"
+            ),
+            b"\x02@ 12345*WB-\r\x00",
+            b"\x02@ 12345+V\r",
+        ]
+    )
+    client = CorePanelClient(
+        PanelEndpoint(host="panel", account="12345", idle_disconnect_seconds=0.01),
+        session_profile=SessionProfileBlankV2(),
+        transport_factory=factory,
+    )
+
+    try:
+        transaction = await client.manager.submit(
+            TransactionQuerySpecificZones(
+                "1",
+                start_zone="500",
+                end_zone="502",
+                include_global_zones=False,
+            )
+        )
+        assert isinstance(transaction.parsed_response, ZoneStatusReply)
+        assert transaction.parsed_response.complete is True
+        assert transaction.parsed_response.areas == []
+        assert [
+            (zone.number, zone.area_number, zone.status, zone.name)
+            for zone in transaction.parsed_response.zones
+        ] == [
+            ("500", "01", "N", "DOOR500"),
+            ("501", "01", "O", "WINDOW501"),
+            ("502", "01", "S", "ZONE502"),
+        ]
+        assert transaction.wire_requests == [
+            b"@12345?WB01N500\r",
+            b"@12345?WB\r",
+        ]
+        assert transports[0].requests[1:] == transaction.wire_requests
+    finally:
+        await client.close()
+
+
+@pytest.mark.asyncio
+async def test_core_panel_client_query_zones_with_area_runs_narrow_sweep():
+    factory, transports = make_transport_factory(
+        scripted_replies=[
+            b"\x02@ 12345+V02012345\r",
+            b"\x02@ 12345*WBA002DINTERIOR\x1eL005NMOTION1\x1e-\r\x00",
+            b"\x02@ 12345*WB-\r\x00",
+            b"\x02@ 12345+V\r",
+        ]
+    )
+    client = CorePanelClient(
+        PanelEndpoint(host="panel", account="12345", idle_disconnect_seconds=0.01),
+        session_profile=SessionProfileBlankV2(),
+        transport_factory=factory,
+    )
+
+    try:
+        reply = await client.query_zones(area_number=2)
+        assert [(zone.number, zone.area_number, zone.status, zone.name) for zone in reply.zones] == [
+            ("005", "02", "N", "MOTION1"),
+        ]
+        assert transports[0].requests[1:] == [
+            b"@12345?WB02Y001\r",
+            b"@12345?WB\r",
+        ]
+    finally:
+        await client.close()
+
+
+def test_transaction_query_specific_zones_rejects_invalid_selectors():
+    with pytest.raises(ValueError):
+        TransactionQuerySpecificZones("33")
+    with pytest.raises(ValueError):
+        TransactionQuerySpecificZones("01", start_zone="000")
+    with pytest.raises(ValueError):
+        TransactionQuerySpecificZones("01", start_zone="010", end_zone="009")
 
 
 @pytest.mark.asyncio

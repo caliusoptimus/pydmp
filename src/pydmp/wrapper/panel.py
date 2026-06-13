@@ -203,7 +203,8 @@ class DMPPanel:
             client = self._require_client()
             try:
                 area_reply = await client.query_areas()
-                zone_reply = await client.query_zones()
+                query_all_zones = getattr(client, "query_all_areas_and_zones", client.query_zones)
+                zone_reply = await query_all_zones()
             except Exception as error:
                 raise map_core_error(error, context="Failed to update panel status") from error
 

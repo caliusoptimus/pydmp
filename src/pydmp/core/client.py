@@ -37,6 +37,7 @@ from .output_status import OutputStatusReply, TransactionQueryOutputs
 from .profiles import ProfileReply, TransactionQueryProfiles
 from .sensor_reset import SensorResetReply, TransactionSensorReset
 from .sessions import SessionProfile, SessionProfileBlankV2
+from .system_options import SystemOptionsReply, TransactionQuerySystemOptions
 from .transport import PanelTransport, TransportProtocol
 from .users import TransactionQueryUsers, UserReply
 from .zone_control import (
@@ -44,7 +45,12 @@ from .zone_control import (
     TransactionUnbypassZone,
     ZoneControlReply,
 )
-from .zone_status import TransactionQueryZones, ZoneStatusReply
+from .zone_status import (
+    TransactionQueryAllAreasAndZones,
+    TransactionQuerySpecificZones,
+    TransactionQueryZones,
+    ZoneStatusReply,
+)
 from .zone_settings import TransactionQueryZoneSettings, ZoneSettingsReply
 
 
@@ -123,14 +129,47 @@ class CorePanelClient:
             raise ValueError("Command completed without a parsed O reply")
         return parsed
 
-    async def query_zones(self) -> ZoneStatusReply:
-        """Return a full zone snapshot from `?WB`.
+    async def query_all_areas_and_zones(self) -> ZoneStatusReply:
+        """Return a full area-discovered zone snapshot from `?WA` + `?WB`.
 
-        The query transaction already handles the area-seeded paging behavior
+        The query transaction handles the area-seeded paging behavior
         that came out of the project captures. This helper simply exposes that
         finished result.
         """
-        transaction = await self._manager.submit(TransactionQueryZones())
+        transaction = await self._manager.submit(TransactionQueryAllAreasAndZones())
+        parsed = transaction.parsed_response
+        if not isinstance(parsed, ZoneStatusReply):
+            raise ValueError("Query completed without a parsed WB reply")
+        return parsed
+
+    async def query_zones(
+        self,
+        area_number: int | str | None = None,
+        *,
+        start_zone: int | str = "001",
+        end_zone: int | str | None = None,
+        include_global_zones: bool = True,
+    ) -> ZoneStatusReply:
+        """Return zone status from `?WB`.
+
+        With no arguments, this preserves the historical high-level helper
+        behavior and returns the full area-discovered snapshot.
+
+        Passing `area_number` runs one area-scoped `?WB` iterator instead. The
+        optional `start_zone` is sent in the seed request. `end_zone` filters
+        returned records client-side because the panel protocol does not expose
+        a known wire-level end selector.
+        """
+        if area_number is None and start_zone == "001" and end_zone is None and include_global_zones:
+            return await self.query_all_areas_and_zones()
+        transaction = await self._manager.submit(
+            TransactionQuerySpecificZones(
+                area_number,
+                start_zone=start_zone,
+                end_zone=end_zone,
+                include_global_zones=include_global_zones,
+            )
+        )
         parsed = transaction.parsed_response
         if not isinstance(parsed, ZoneStatusReply):
             raise ValueError("Query completed without a parsed WB reply")
@@ -150,6 +189,14 @@ class CorePanelClient:
         parsed = transaction.parsed_response
         if not isinstance(parsed, AreaSettingsReply):
             raise ValueError("Query completed without a parsed Za reply")
+        return parsed
+
+    async def query_system_options(self) -> SystemOptionsReply:
+        """Return the packed System Options record from `?Zo`."""
+        transaction = await self._manager.submit(TransactionQuerySystemOptions())
+        parsed = transaction.parsed_response
+        if not isinstance(parsed, SystemOptionsReply):
+            raise ValueError("Query completed without a parsed Zo reply")
         return parsed
 
     async def query_outputs(

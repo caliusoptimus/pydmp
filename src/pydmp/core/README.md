@@ -153,7 +153,9 @@ state-changing transactions.
 Read-only transactions:
 
 - `TransactionQueryAreas`: authoritative area status from `?WA`
-- `TransactionQueryZones`: full area-seeded zone status from `?WB`
+- `TransactionQueryZones`: full `?WA` area discovery plus area-seeded `?WB` zone status
+- `TransactionQueryAllAreasAndZones`: explicit alias for `TransactionQueryZones`
+- `TransactionQuerySpecificZones`: one seeded `?WB` zone-status sweep for an area selector
 - `TransactionQueryAreaSettings`: one area settings record from `?ZaNN`
 - `TransactionQueryZoneSettings`: one zone settings record from `?ZLNNN`
 - `TransactionQueryUsers`: visible user table from `?P=`
@@ -186,6 +188,11 @@ area number, name, area state, schedule-active state, and late-to-close state.
 : First queries areas, then polls each area's `?WB` stream to completion. This
 is important because area-specific zones may only appear when their own area is
 used as the seed. Duplicate global zones are de-duplicated in the final result.
+
+`TransactionQuerySpecificZones`
+: Runs one seeded `?WB<area><flag><start>` iterator. Use this for lower-latency
+area polling after discovery. The optional end selector is a client-side result
+filter; the panel protocol does not expose a known wire-level end selector.
 
 `TransactionQueryOutputs`
 : Polls one output namespace at a time. Numeric outputs are the default. `D`,
@@ -293,4 +300,3 @@ and `Output` style objects.
 
 That wrapper is a migration aid. New code should prefer `pydmp.core` directly
 unless it specifically needs the older stateful surface.
-

@@ -67,6 +67,11 @@ from .sensor_reset import (
     TransactionSensorReset,
     parse_sensor_reset_reply,
 )
+from .system_options import (
+    SystemOptionsReply,
+    TransactionQuerySystemOptions,
+    parse_system_options_reply,
+)
 
 # Push listener surface.
 from .listener import (
@@ -158,10 +163,14 @@ from .users import (
     parse_user_page,
 )
 from .zone_status import (
+    TransactionQueryAllAreasAndZones,
+    TransactionQuerySpecificZones,
     TransactionQueryZones,
     ZoneStatusPage,
     ZoneStatusRecord,
     ZoneStatusReply,
+    normalize_zone_query_area,
+    normalize_zone_query_selector,
     parse_zone_status_page,
 )
 from .zone_control import (
@@ -209,7 +218,11 @@ __all__ = [
     "ZoneStatusPage",
     "ZoneStatusRecord",
     "ZoneStatusReply",
+    "TransactionQueryAllAreasAndZones",
+    "TransactionQuerySpecificZones",
     "TransactionQueryZones",
+    "normalize_zone_query_area",
+    "normalize_zone_query_selector",
     "parse_zone_status_page",
     "TransactionBypassZone",
     "TransactionUnbypassZone",
@@ -284,5 +297,8 @@ __all__ = [
     "SensorResetReply",
     "TransactionSensorReset",
     "parse_sensor_reset_reply",
+    "SystemOptionsReply",
+    "TransactionQuerySystemOptions",
+    "parse_system_options_reply",
     "PanelTransport",
 ]

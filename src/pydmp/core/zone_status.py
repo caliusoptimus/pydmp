@@ -17,9 +17,10 @@ ZONE_RECORD_SEPARATOR = b"\x1e"
 ZONE_REPLY_PREFIXES = (b"*WB", b"!WB", b"?WB")
 ZONE_QUERY_CONTINUATION_BODY = "?WB"
 ZONE_GLOBAL_AREA_NUMBER = "00"
+ZONE_WILDCARD_AREA_SELECTOR = "**"
 ZONE_START_ZONE = "001"
 ZONE_EMIT_FLAG = "Y"
-ZONE_QUERY_WILDCARD_BODY = f"?WB**{ZONE_EMIT_FLAG}{ZONE_START_ZONE}"
+ZONE_QUERY_WILDCARD_BODY = f"?WB{ZONE_WILDCARD_AREA_SELECTOR}{ZONE_EMIT_FLAG}{ZONE_START_ZONE}"
 ZONE_QUERY_MAX_PAGES = 256
 ZONE_NAME_MAX_LENGTH = 32
 ZONE_STATUS_CHARS = frozenset("NLOMSX")
@@ -92,7 +93,12 @@ class TransactionQueryZones(Transaction):
             # Each area gets its own seeded `?WBxxY001` walk. Project captures
             # show that some zones only appear under their own area seed.
             for area in discovered.areas:
-                sweep = await collect_zone_status_for_area(self, exchange, area_number=area.number, session_mode=session_mode)
+                sweep = await collect_zone_status_for_area(
+                    self,
+                    exchange,
+                    area_number=area.number,
+                    session_mode=session_mode,
+                )
                 raw_replies.extend(sweep.raw_replies)
                 zones_complete = zones_complete and sweep.complete
                 for zone in sweep.zones:
@@ -102,7 +108,12 @@ class TransactionQueryZones(Transaction):
         else:
             # Area discovery should normally find at least area 01. If it does
             # not, wildcard is the least-assumptive fallback for global rows.
-            sweep = await collect_zone_status_pages(self, exchange, initial_body=ZONE_QUERY_WILDCARD_BODY, session_mode=session_mode)
+            sweep = await collect_zone_status_pages(
+                self,
+                exchange,
+                initial_body=ZONE_QUERY_WILDCARD_BODY,
+                session_mode=session_mode,
+            )
             raw_replies.extend(sweep.raw_replies)
             zones_complete = sweep.complete
             for zone in sweep.zones:
@@ -111,6 +122,88 @@ class TransactionQueryZones(Transaction):
                 zones_by_number[zone.number] = zone
 
         self.parsed_response = ZoneStatusReply(zones=sorted(zones_by_number.values(), key=lambda zone: int(zone.number)), areas=discovered.areas, complete=discovered.complete and zones_complete, raw_replies=raw_replies)
+        return self
+
+
+class TransactionQueryAllAreasAndZones(TransactionQueryZones):
+    """Explicit alias for the full-panel `TransactionQueryZones` snapshot."""
+
+    __slots__ = ()
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.label = "query_all_areas_and_zones"
+
+
+class TransactionQuerySpecificZones(Transaction):
+    """One seeded `?WB` zone-status iterator.
+
+    This is the narrow zone-status transaction: it starts one `?WB` sweep for a
+    specific area selector and optional start selector. `end_zone` is an
+    inclusive client-side result filter; the panel protocol does not expose a
+    known wire-level end selector, so the iterator still runs until the normal
+    empty terminal page.
+    """
+
+    __slots__ = (
+        "area_number",
+        "start_zone",
+        "end_zone",
+        "include_global_zones",
+    )
+
+    def __init__(
+        self,
+        area_number: int | str | None = ZONE_WILDCARD_AREA_SELECTOR,
+        *,
+        start_zone: int | str = ZONE_START_ZONE,
+        end_zone: int | str | None = None,
+        include_global_zones: bool = True,
+    ) -> None:
+        self.area_number = normalize_zone_query_area(area_number)
+        self.start_zone = normalize_zone_query_selector(start_zone, label="start zone")
+        self.end_zone = (
+            None
+            if end_zone is None
+            else normalize_zone_query_selector(end_zone, label="end zone")
+        )
+        validate_zone_query_range(start_zone=self.start_zone, end_zone=self.end_zone)
+        self.include_global_zones = include_global_zones
+        super().__init__(
+            body=_build_zone_query_body(
+                area_number=self.area_number,
+                start_zone=self.start_zone,
+                include_global_zones=self.include_global_zones,
+            ),
+            completion=payload_required(),
+            label="query_specific_zones",
+        )
+
+    async def execute_in_session(
+        self,
+        exchange: TransactionRunner,
+        *,
+        session_mode,
+        endpoint=None,
+    ) -> Transaction:
+        del endpoint
+        sweep = await collect_zone_status_pages(
+            self,
+            exchange,
+            initial_body=self.body,
+            session_mode=session_mode,
+        )
+        zones = _filter_zone_status_range(
+            sweep.zones,
+            start_zone=self.start_zone,
+            end_zone=self.end_zone,
+        )
+        self.parsed_response = ZoneStatusReply(
+            zones=sorted(zones, key=lambda zone: int(zone.number)),
+            areas=[],
+            complete=sweep.complete,
+            raw_replies=sweep.raw_replies,
+        )
         return self
 
 
@@ -128,10 +221,41 @@ async def collect_zone_status_for_area(
     exchange: TransactionRunner,
     *,
     area_number: str,
+    start_zone: int | str = ZONE_START_ZONE,
+    end_zone: int | str | None = None,
+    include_global_zones: bool = True,
     session_mode,
 ) -> ZoneStatusCollection:
     """Collect a full paged `?WB` sweep for one discovered area."""
-    return await collect_zone_status_pages(transaction, exchange, initial_body=f"?WB{area_number}{ZONE_EMIT_FLAG}{ZONE_START_ZONE}", session_mode=session_mode)
+    normalized_area = normalize_zone_query_area(area_number)
+    normalized_start = normalize_zone_query_selector(start_zone, label="start zone")
+    normalized_end = (
+        None
+        if end_zone is None
+        else normalize_zone_query_selector(end_zone, label="end zone")
+    )
+    validate_zone_query_range(start_zone=normalized_start, end_zone=normalized_end)
+    collection = await collect_zone_status_pages(
+        transaction,
+        exchange,
+        initial_body=_build_zone_query_body(
+            area_number=normalized_area,
+            start_zone=normalized_start,
+            include_global_zones=include_global_zones,
+        ),
+        session_mode=session_mode,
+    )
+    if normalized_start == ZONE_START_ZONE and normalized_end is None:
+        return collection
+    return ZoneStatusCollection(
+        zones=_filter_zone_status_range(
+            collection.zones,
+            start_zone=normalized_start,
+            end_zone=normalized_end,
+        ),
+        raw_replies=collection.raw_replies,
+        complete=collection.complete,
+    )
 
 
 async def collect_zone_status_pages(
@@ -231,6 +355,63 @@ def parse_zone_status_page(
     )
 
 
+def normalize_zone_query_area(area_number: int | str | None) -> str:
+    """Normalize a `?WB` area selector to `01`-`32` or wildcard `**`."""
+    if area_number is None:
+        return ZONE_WILDCARD_AREA_SELECTOR
+    text = str(area_number).strip()
+    if text == ZONE_WILDCARD_AREA_SELECTOR:
+        return text
+    if not text.isdigit():
+        raise ValueError(f"Zone query area must be numeric or '**', got: {area_number!r}")
+    value = int(text)
+    if not 1 <= value <= 32:
+        raise ValueError(f"Zone query area must be between 1 and 32, got: {value}")
+    return f"{value:02d}"
+
+
+def normalize_zone_query_selector(selector: int | str, *, label: str) -> str:
+    """Normalize a `?WB` visible zone selector to three digits."""
+    text = str(selector).strip()
+    if not text.isdigit():
+        raise ValueError(f"Zone query {label} must be numeric, got: {selector!r}")
+    value = int(text)
+    if not 1 <= value <= 999:
+        raise ValueError(f"Zone query {label} must be between 1 and 999, got: {value}")
+    return f"{value:03d}"
+
+
+def validate_zone_query_range(*, start_zone: str, end_zone: str | None) -> None:
+    """Validate one inclusive `?WB` client-side selector range."""
+    if end_zone is not None and int(end_zone) < int(start_zone):
+        raise ValueError(f"Zone query end zone must be >= start zone, got: {end_zone}")
+
+
+def _build_zone_query_body(
+    *,
+    area_number: str,
+    start_zone: str,
+    include_global_zones: bool,
+) -> str:
+    emit_flag = ZONE_EMIT_FLAG if include_global_zones else "N"
+    return f"?WB{area_number}{emit_flag}{start_zone}"
+
+
+def _filter_zone_status_range(
+    zones: list[ZoneStatusRecord],
+    *,
+    start_zone: str,
+    end_zone: str | None,
+) -> list[ZoneStatusRecord]:
+    start = int(start_zone)
+    end = None if end_zone is None else int(end_zone)
+    return [
+        zone
+        for zone in zones
+        if int(zone.number) >= start and (end is None or int(zone.number) <= end)
+    ]
+
+
 def _parse_area_anchor(raw_row: bytes) -> str:
     """Parse one `AxxxSNAME` area anchor row and return the active area."""
     if len(raw_row) < 5:
@@ -316,6 +497,9 @@ def _extract_zone_payload(reply: bytes) -> bytes:
         if index == -1:
             continue
         return reply[index + len(marker):]
+
+    if b"-WB" in reply or b"-W" in reply:
+        raise SessionProtocolError(f"Panel denied ?WB request: {reply!r}")
 
     raise SessionProtocolError("Reply did not contain a WB marker")
 
