@@ -19,6 +19,9 @@ from pydmp.core import (
 RECORD_001 = (
     b"001EX01YFFFFFFFFNNN---------00-000S-000SA000SA000S1N1N6NNY0000000003NYN4LY---00000N1F--N0000000000DOOR1"
 )
+RECORD_001_LEGACY_83 = (
+    b"001EX01YFFFFFFFFNNN---------00-000S-000SA000SA000S1N1N6NNY0000000003NYN4LY---00000NZ1"
+)
 RECORD_002 = (
     b"002IN01Y00000000NNN---------00-000S-000SA000SA000S1N1N6NNY0000000003NYN4LY---00000N0F--N0000000000WINDOW1"
 )
@@ -118,6 +121,7 @@ def test_parse_zone_settings_page_decodes_known_direct_record():
     assert len(page.records) == 1
 
     record = page.records[0]
+    assert record.layout == "current_98"
     assert record.number == "001"
     assert record.type_code == "EX"
     assert record.area == "01"
@@ -185,6 +189,71 @@ def test_parse_zone_settings_page_decodes_known_direct_record():
     assert record.reference10 == "0000000000"
     assert record.name == "DOOR1"
     assert record.unused is False
+
+
+def test_parse_zone_settings_page_decodes_legacy_83_direct_record():
+    reply = b"\x02@ 12345*ZL" + RECORD_001_LEGACY_83 + b"\x1e\r\x00"
+
+    page = parse_zone_settings_page(reply)
+
+    assert page.has_terminal_marker is False
+    assert page.short_default is False
+    assert len(page.records) == 1
+
+    record = page.records[0]
+    assert record.layout == "legacy_83"
+    assert record.number == "001"
+    assert record.type_code == "EX"
+    assert record.area == "01"
+    assert record.swinger_bypass == "Y"
+    assert record.keypad_bitmask == "FFFFFFFF"
+    assert record.retard == "N"
+    assert record.fire_panel_slave == "N"
+    assert record.priority == "N"
+    assert record.arming_zone_special_word == "--------"
+    assert record.dmp_wireless == "-"
+    assert record.report_with_account_area == "00"
+    assert record.disarmed_open_action == "none"
+    assert record.disarmed_open_output == "none"
+    assert record.disarmed_open_output_mode == "S"
+    assert record.disarmed_short_action == "none"
+    assert record.disarmed_short_output == "none"
+    assert record.disarmed_short_output_mode == "S"
+    assert record.armed_open_action == "A"
+    assert record.armed_open_output == "none"
+    assert record.armed_open_output_mode == "S"
+    assert record.armed_short_action == "A"
+    assert record.armed_short_output == "none"
+    assert record.armed_short_output_mode == "S"
+    assert record.entry_delay_number == "1"
+    assert record.fast_response == "N"
+    assert record.fixed_literal_34 == "1"
+    assert record.cross_zone == "N"
+    assert record.supervision_time_code == "6"
+    assert record.transmitter_contact_high_bit == "N"
+    assert record.disarm_disable == "N"
+    assert record.normally_open == "Y"
+    assert record.transmitter_serial == "00000000"
+    assert record.transmitter_contact_index == "0"
+    assert record.supervision_time_index == "3"
+    assert record.led_operation == "N"
+    assert record.normally_open_duplicate == "Y"
+    assert record.disarm_disable_duplicate == "N"
+    assert record.pir_pulse_count == "4"
+    assert record.pir_sensitivity == "L"
+    assert record.zone_real_time_status == "Y"
+    assert record.filler_4a_4c == "---"
+    assert record.follow_area == "00"
+    assert record.zone_audit_days == "000"
+    assert record.traffic_count == "N"
+    assert record.chime is None
+    assert record.wireless_pir_pet_immunity is None
+    assert record.lockdown is None
+    assert record.internal_type5_slot is None
+    assert record.compatible_wireless is None
+    assert record.expander_serial is None
+    assert record.name_prefix == ""
+    assert record.name == "Z1"
 
 
 def test_parse_zone_settings_page_handles_lowercase_multi_record_page():

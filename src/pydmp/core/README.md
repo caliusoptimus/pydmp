@@ -155,12 +155,14 @@ Read-only transactions:
 - `TransactionQueryAreas`: authoritative area status from `?WA`
 - `TransactionQueryZones`: full `?WA` area discovery plus area-seeded `?WB` zone status
 - `TransactionQueryAllAreasAndZones`: explicit alias for `TransactionQueryZones`
-- `TransactionQuerySpecificZones`: one seeded `?WB` zone-status sweep for an area selector
+- `TransactionQuerySpecificZones`: one seeded `?WB` zone-status page for an area selector
 - `TransactionQueryAreaSettings`: one area settings record from `?ZaNN`
 - `TransactionQueryZoneSettings`: one zone settings record from `?ZLNNN`
 - `TransactionQueryUsers`: visible user table from `?P=`
 - `TransactionQueryProfiles`: visible profile table from `?U`
 - `TransactionQueryOutputs`: output status from `?WQ`
+- `TransactionQuerySpecificOutputs`: selected output status rows from targeted `?WQ` seeds
+- `TransactionQueryOutputInformation`: output information rows from lowercase `?Zi`
 - `TransactionQueryLockoutCode`: programmer lockout code from `?ZZ`
 
 State-changing transactions:
@@ -171,6 +173,7 @@ State-changing transactions:
 - `TransactionBypassZone`: bypass one zone through `!X`
 - `TransactionUnbypassZone`: restore one zone through `!Y`
 - `TransactionSetOutput`: set one output selector through `!Q`
+- `TransactionAlarmSilence`: alarm silence through the firmware-special `!Q000O`
 
 `TransactionWriteUser` exists in the users module, but it is intentionally not
 part of the public `pydmp.core` export surface yet. User writes need more
@@ -190,15 +193,40 @@ is important because area-specific zones may only appear when their own area is
 used as the seed. Duplicate global zones are de-duplicated in the final result.
 
 `TransactionQuerySpecificZones`
-: Runs one seeded `?WB<area><flag><start>` iterator. Use this for lower-latency
-area polling after discovery. The optional end selector is a client-side result
-filter; the panel protocol does not expose a known wire-level end selector.
+: Reads one seeded `?WB<area><flag><start>` page and does not send
+continuations. Use this for low-latency targeted polling after discovery. The
+optional end selector is a client-side result filter for rows on that one page;
+the panel protocol does not expose a known wire-level end selector. The flag is
+selected automatically from the requested zone area: area `00` and wildcard
+`**` use `Y`, while areas `01`-`32` use `N`. `complete` only reflects the
+sampled page terminator, not a full namespace walk.
 
 `TransactionQueryOutputs`
 : Polls one output namespace at a time. Numeric outputs are the default. `D`,
 `F`, and `G` namespaces must be requested explicitly. By default, unnamed and
 `* UNUSED *` outputs are filtered from the returned `records`, while all parsed
 rows remain available in `all_records`.
+
+`TransactionQuerySpecificOutputs`
+: Samples selected output selectors with explicit `?WQ<selector>` requests.
+Each request still returns a normal WQ page, so one seed can satisfy multiple
+requested selectors. The transaction samples the lowest pending selector first
+to maximize page overlap, but returned records stay in caller selector order.
+`complete=True` means every requested selector was seen; it does not mean the
+whole namespace was walked to the terminal page.
+
+`TransactionQueryOutputInformation`
+: Walks lowercase `?Zi` Output Information pages. For local numeric outputs,
+this returns the output name plus the confirmed Output Real-Time Status flag.
+Backend-linked rows are parsed conservatively with serial/supervision/trip
+fields preserved. This is distinct from uppercase `?ZI`, `?WQ` output state,
+and push event code `Zi`.
+
+`TransactionAlarmSilence`
+: Sends the named alarm-silence command `!Q000O`. This deliberately does not
+relax `TransactionSetOutput`, where selector `000` remains rejected. Project
+notes and live testing show selector `000` plus mode `O` follows special global
+silence handling rather than normal output control.
 
 `TransactionQueryUsers` and `TransactionQueryProfiles`
 : Walk by selector progress. Each next query is based on the highest returned
@@ -212,7 +240,9 @@ The write transactions are intentionally narrow:
 - area arm/disarm commands take area numbers and normalize them to panel form
 - bypass and unbypass write exactly one zone per command
 - output writes accept parser-valid output selectors but do not prove that a
-selector is meaningful on the current panel
+  selector is meaningful on the current panel
+- alarm silence is exposed as its own transaction, not as selector `000` output
+  control
 
 Applications should poll first and write second. For example, use
 `TransactionQueryOutputs` before `TransactionSetOutput`, and keep output writes

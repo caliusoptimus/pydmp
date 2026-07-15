@@ -1,4 +1,4 @@
-"""Query one seeded `?WB` sweep with `TransactionQuerySpecificZones`."""
+"""Query one seeded `?WB` page with `TransactionQuerySpecificZones`."""
 
 from __future__ import annotations
 
@@ -17,13 +17,13 @@ from pydmp.core import TransactionQuerySpecificZones, ZoneStatusReply
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI parser for this example."""
     parser = argparse.ArgumentParser(
-        description="Query one area-scoped or wildcard ?WB sweep with TransactionQuerySpecificZones."
+        description="Query one area-scoped or wildcard ?WB page with TransactionQuerySpecificZones."
     )
     add_common_command_arguments(parser)
     parser.add_argument(
         "--area",
         default="**",
-        help="Area selector to seed ?WB with. Use 01-32 for one area, or ** for wildcard.",
+        help="Area selector to seed ?WB with. Use 00 for global zones, 01-32 for one area, or ** for wildcard.",
     )
     parser.add_argument(
         "--start-zone",
@@ -32,12 +32,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--end-zone",
-        help="Optional inclusive client-side filter for returned zone records.",
-    )
-    parser.add_argument(
-        "--no-global-zones",
-        action="store_true",
-        help="Use the N flag in the ?WB seed instead of the default Y flag.",
+        help="Optional inclusive client-side filter for records on the returned page.",
     )
     return parser
 
@@ -53,7 +48,6 @@ async def async_main() -> int:
                 args.area,
                 start_zone=args.start_zone,
                 end_zone=args.end_zone,
-                include_global_zones=not args.no_global_zones,
             )
         )
         reply = transaction.parsed_response
@@ -63,7 +57,7 @@ async def async_main() -> int:
         print(f"area selector: {transaction.area_number}")
         print(f"start zone: {transaction.start_zone}")
         print(f"end zone: {transaction.end_zone or '<none>'}")
-        print(f"include global zones: {transaction.include_global_zones}")
+        print(f"query flag: {transaction.query_flag}")
         print_zone_status_reply(reply)
 
         if args.show_raw:

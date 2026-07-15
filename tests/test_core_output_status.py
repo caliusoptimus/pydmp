@@ -12,6 +12,8 @@ from pydmp.core import (
     SessionProtocolError,
     SessionProfileBlankV2,
     TransactionQueryOutputs,
+    TransactionQuerySpecificOutputs,
+    normalize_output_selectors,
     normalize_output_selector,
     parse_output_status_page,
 )
@@ -68,6 +70,26 @@ def test_transaction_query_outputs_shape():
     assert namespaced.namespace == "D"
     assert namespaced.named_only is False
     assert namespaced.max_pages == 3
+
+
+def test_transaction_query_specific_outputs_shape():
+    transaction = TransactionQuerySpecificOutputs([1, "001", "?WQ580"], named_only=True)
+
+    assert transaction.body == "?WQ001"
+    assert transaction.label == "query_specific_outputs"
+    assert transaction.parser is None
+    assert transaction.selectors == ("001", "580")
+    assert transaction.named_only is True
+
+    assert normalize_output_selectors([1, "D1", "D01", "?WQG99"]) == (
+        "001",
+        "D01",
+        "G99",
+    )
+    assert normalize_output_selectors("580") == ("580",)
+
+    with pytest.raises(ValueError):
+        TransactionQuerySpecificOutputs([])
 
 
 def test_normalize_output_selector():
@@ -345,3 +367,101 @@ async def test_manager_query_outputs_numeric_seed_does_not_reseed_into_d_namespa
         ]
     finally:
         await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_core_panel_client_query_specific_outputs_reuses_page_rows():
+    factory, transports = make_transport_factory(
+        scripted_replies=[
+            b"\x02@ 12345+V02012345\r",
+            b"\x02@ 12345*WQ001OOUTPUT ONE\x1e002SOUTPUT TWO\x1e003O\x1e---\r\x00",
+            b"\x02@ 12345*WQ580SZE1\x1e581OZE2\x1e---\r\x00",
+            b"\x02@ 12345+V\r",
+        ]
+    )
+    client = CorePanelClient(
+        PanelEndpoint(host="panel", account="12345", idle_disconnect_seconds=0.01),
+        session_profile=SessionProfileBlankV2(),
+        transport_factory=factory,
+    )
+
+    try:
+        reply = await client.query_specific_outputs([1, 2, 580])
+        assert isinstance(reply, OutputStatusReply)
+        assert reply.complete is True
+        assert reply.namespace == "specific"
+        assert reply.named_only is False
+        assert [record.selector for record in reply.records] == [
+            "001",
+            "002",
+            "580",
+        ]
+        assert [record.status for record in reply.records] == ["O", "S", "S"]
+        assert [record.selector for record in reply.all_records] == [
+            "001",
+            "002",
+            "003",
+            "580",
+            "581",
+        ]
+        assert transports[0].requests[1:3] == [
+            b"@12345?WQ001\r",
+            b"@12345?WQ580\r",
+        ]
+    finally:
+        await client.close()
+
+
+@pytest.mark.asyncio
+async def test_core_panel_client_query_specific_outputs_samples_lowest_pending_selector_first():
+    factory, transports = make_transport_factory(
+        scripted_replies=[
+            b"\x02@ 12345+V02012345\r",
+            b"\x02@ 12345*WQ001OOUTPUT ONE\x1e002O\x1e003O\x1e004O\x1e504SRELAY 504\x1e---\r\x00",
+            b"\x02@ 12345+V\r",
+        ]
+    )
+    client = CorePanelClient(
+        PanelEndpoint(host="panel", account="12345", idle_disconnect_seconds=0.01),
+        session_profile=SessionProfileBlankV2(),
+        transport_factory=factory,
+    )
+
+    try:
+        reply = await client.query_specific_outputs([504, 1])
+        assert isinstance(reply, OutputStatusReply)
+        assert reply.complete is True
+        assert [record.selector for record in reply.records] == ["504", "001"]
+        assert [record.status for record in reply.records] == ["S", "O"]
+        assert transports[0].requests[1:2] == [
+            b"@12345?WQ001\r",
+        ]
+    finally:
+        await client.close()
+
+
+@pytest.mark.asyncio
+async def test_core_panel_client_query_specific_outputs_marks_missing_incomplete():
+    factory, transports = make_transport_factory(
+        scripted_replies=[
+            b"\x02@ 12345+V02012345\r",
+            b"\x02@ 12345*WQ---\r\x00",
+            b"\x02@ 12345+V\r",
+        ]
+    )
+    client = CorePanelClient(
+        PanelEndpoint(host="panel", account="12345", idle_disconnect_seconds=0.01),
+        session_profile=SessionProfileBlankV2(),
+        transport_factory=factory,
+    )
+
+    try:
+        reply = await client.query_specific_outputs([999])
+        assert isinstance(reply, OutputStatusReply)
+        assert reply.complete is False
+        assert reply.records == []
+        assert reply.all_records == []
+        assert len(reply.raw_replies) == 1
+        assert transports[0].requests[1:2] == [b"@12345?WQ999\r"]
+    finally:
+        await client.close()

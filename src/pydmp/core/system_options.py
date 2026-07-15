@@ -16,6 +16,9 @@ from .models import Transaction, payload_required
 
 SYSTEM_OPTIONS_REPLY_PREFIXES: Final[tuple[bytes, ...]] = (b"*Zo", b"!Zo", b"?Zo")
 SYSTEM_OPTIONS_BODY_LENGTH: Final[int] = 76
+SYSTEM_OPTIONS_LEGACY_BODY_LENGTH: Final[int] = 58
+SYSTEM_OPTIONS_LAYOUT_CURRENT_76: Final[str] = "current_76"
+SYSTEM_OPTIONS_LAYOUT_LEGACY_58: Final[str] = "legacy_58"
 SYSTEM_OPTIONS_YN_VALUES: Final[frozenset[str]] = frozenset({"Y", "N"})
 SYSTEM_OPTIONS_HEX_ALPHABET: Final[bytes] = b"0123456789ABCDEF"
 SYSTEM_OPTIONS_DEFAULT_OBFUSCATION_SOURCE_TEXT: Final[str] = " " * 16
@@ -109,15 +112,16 @@ class SystemOptionsReply:
     weather_zip_raw: str
     weather_zip: str | None
     zone_activity_hours: int
-    wireless_encryption_code: str
-    wireless_encryption: str
-    obscured_passphrase: str
+    wireless_encryption_code: str | None
+    wireless_encryption: str | None
+    obscured_passphrase: str | None
     wireless_passphrase_hex: str | None
     wireless_passphrase: str | None
-    gap_67_73: str
-    eol_value_code: str
-    eol_value: str
-    thermostat_unit_celsius: bool
+    gap_67_73: str | None
+    eol_value_code: str | None
+    eol_value: str | None
+    thermostat_unit_celsius: bool | None
+    layout: str
     extra_tail: str
     raw_body: bytes
     raw_reply: bytes
@@ -139,32 +143,69 @@ def parse_system_options_reply(reply: bytes) -> SystemOptionsReply:
     """Parse one raw panel reply for the `?Zo` System Options family."""
     payload = _extract_system_options_payload(reply)
     cleaned = payload.rstrip(b"\r\x00")
-    if len(cleaned) < SYSTEM_OPTIONS_BODY_LENGTH:
+    if len(cleaned) == SYSTEM_OPTIONS_LEGACY_BODY_LENGTH:
+        layout = SYSTEM_OPTIONS_LAYOUT_LEGACY_58
+        body = cleaned
+        extra_tail = ""
+    elif len(cleaned) >= SYSTEM_OPTIONS_BODY_LENGTH:
+        layout = SYSTEM_OPTIONS_LAYOUT_CURRENT_76
+        body = cleaned[:SYSTEM_OPTIONS_BODY_LENGTH]
+        extra_tail = _decode_printable_ascii(
+            cleaned[SYSTEM_OPTIONS_BODY_LENGTH:],
+            raw_body=cleaned,
+            label="extra tail",
+        )
+    elif len(cleaned) < SYSTEM_OPTIONS_LEGACY_BODY_LENGTH:
         raise SessionProtocolError(
-            f"Malformed ?Zo reply body shorter than {SYSTEM_OPTIONS_BODY_LENGTH} bytes: {reply!r}"
+            f"Malformed ?Zo reply body shorter than {SYSTEM_OPTIONS_LEGACY_BODY_LENGTH} bytes: {reply!r}"
+        )
+    else:
+        raise SessionProtocolError(
+            f"Unsupported ?Zo reply body length {len(cleaned)} bytes: {reply!r}"
         )
 
-    body = cleaned[:SYSTEM_OPTIONS_BODY_LENGTH]
-    extra_tail = _decode_printable_ascii(
-        cleaned[SYSTEM_OPTIONS_BODY_LENGTH:],
-        raw_body=cleaned,
-        label="extra tail",
-    )
     text = _decode_printable_ascii(body, raw_body=body, label="body")
 
     system_arming_code = text[39]
     weather_zip_raw = text[52:57]
-    wireless_encryption_code = text[58]
-    obscured_passphrase = _parse_hex_text(
-        text[59:67],
-        raw_body=body,
-        label="obscured passphrase",
-    )
-    wireless_passphrase_hex = _deobscure_passphrase_hex(
-        obscured_passphrase,
-        account_number=_extract_system_options_account(reply),
-    )
-    eol_value_code = text[74]
+    wireless_encryption_code: str | None = None
+    wireless_encryption: str | None = None
+    obscured_passphrase: str | None = None
+    wireless_passphrase_hex: str | None = None
+    wireless_passphrase: str | None = None
+    gap_67_73: str | None = None
+    eol_value_code: str | None = None
+    eol_value: str | None = None
+    thermostat_unit_celsius: bool | None = None
+
+    if layout == SYSTEM_OPTIONS_LAYOUT_CURRENT_76:
+        wireless_encryption_code = text[58]
+        wireless_encryption = _decode_known(
+            wireless_encryption_code,
+            WIRELESS_ENCRYPTION_TYPES,
+        )
+        obscured_passphrase = _parse_hex_text(
+            text[59:67],
+            raw_body=body,
+            label="obscured passphrase",
+        )
+        wireless_passphrase_hex = _deobscure_passphrase_hex(
+            obscured_passphrase,
+            account_number=_extract_system_options_account(reply),
+        )
+        wireless_passphrase = (
+            _strip_leading_zero_bytes_hex(wireless_passphrase_hex)
+            if wireless_passphrase_hex is not None
+            else None
+        )
+        gap_67_73 = text[67:74]
+        eol_value_code = text[74]
+        eol_value = _decode_known(eol_value_code, EOL_VALUE_TYPES)
+        thermostat_unit_celsius = _parse_yn(
+            text[75],
+            raw_body=body,
+            label="thermostat unit Celsius",
+        )
 
     return SystemOptionsReply(
         closing_wait=_parse_yn(text[0], raw_body=body, label="closing wait"),
@@ -246,25 +287,15 @@ def parse_system_options_reply(reply: bytes) -> SystemOptionsReply:
         weather_zip=_parse_weather_zip(weather_zip_raw, raw_body=body),
         zone_activity_hours=_parse_digits(text[57], raw_body=body, label="zone activity hours"),
         wireless_encryption_code=wireless_encryption_code,
-        wireless_encryption=_decode_known(
-            wireless_encryption_code,
-            WIRELESS_ENCRYPTION_TYPES,
-        ),
+        wireless_encryption=wireless_encryption,
         obscured_passphrase=obscured_passphrase,
         wireless_passphrase_hex=wireless_passphrase_hex,
-        wireless_passphrase=(
-            _strip_leading_zero_bytes_hex(wireless_passphrase_hex)
-            if wireless_passphrase_hex is not None
-            else None
-        ),
-        gap_67_73=text[67:74],
+        wireless_passphrase=wireless_passphrase,
+        gap_67_73=gap_67_73,
         eol_value_code=eol_value_code,
-        eol_value=_decode_known(eol_value_code, EOL_VALUE_TYPES),
-        thermostat_unit_celsius=_parse_yn(
-            text[75],
-            raw_body=body,
-            label="thermostat unit Celsius",
-        ),
+        eol_value=eol_value,
+        thermostat_unit_celsius=thermostat_unit_celsius,
+        layout=layout,
         extra_tail=extra_tail,
         raw_body=body,
         raw_reply=reply,

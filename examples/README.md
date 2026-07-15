@@ -106,7 +106,7 @@ receive nothing.
 3. `query_all_areas_and_zones.py`
    - Shows the explicit full area-and-zone snapshot alias.
 4. `query_specific_zones.py`
-   - Shows one seeded `?WB` area/wildcard sweep.
+   - Shows one seeded `?WB` area/wildcard page.
 5. `query_area_settings.py`
    - Shows direct `CommandSessionManager` + transaction usage.
 6. `query_zone_settings.py`
@@ -117,23 +117,28 @@ receive nothing.
    - Walks the visible profile table.
 9. `query_outputs.py`
    - Shows the output query options, including namespace selection.
-10. `query_system_options.py`
+10. `query_specific_outputs.py`
+   - Queries selected output selectors without walking the whole `?WQ` namespace.
+11. `query_output_information.py`
+   - Reads lowercase `?Zi` output information rows.
+12. `query_system_options.py`
    - Reads the packed `?Zo` System Options record.
-11. `query_lockout_code.py`
+13. `query_lockout_code.py`
    - Shows a very small read transaction.
-12. `listen.py`
+14. `listen.py`
    - Starts the push listener, prints messages to the terminal, and writes a log file.
-13. `sensor_reset.py`
-14. `arm_areas.py`
-15. `disarm_areas.py`
-16. `bypass_zone.py`
-17. `unbypass_zone.py`
-18. `set_output.py`
+15. `sensor_reset.py`
+16. `arm_areas.py`
+17. `disarm_areas.py`
+18. `bypass_zone.py`
+19. `unbypass_zone.py`
+20. `set_output.py`
+21. `alarm_silence.py`
 
 The intended flow is:
 
-- work through `1` to `12` first
-- move on to `13` to `18` only after the read-only and monitoring examples are working as expected
+- work through `1` to `14` first
+- move on to `15` to `21` only after the read-only and monitoring examples are working as expected
 
 ## Transaction-to-Example Map
 
@@ -150,6 +155,8 @@ There is now one example script for each public transaction in `pydmp.core`.
 - `TransactionQueryUsers` -> `query_users.py`
 - `TransactionQueryProfiles` -> `query_profiles.py`
 - `TransactionQueryOutputs` -> `query_outputs.py`
+- `TransactionQuerySpecificOutputs` -> `query_specific_outputs.py`
+- `TransactionQueryOutputInformation` -> `query_output_information.py`
 - `TransactionQuerySystemOptions` -> `query_system_options.py`
 - `TransactionQueryLockoutCode` -> `query_lockout_code.py`
 - push listener / monitoring -> `listen.py`
@@ -162,6 +169,7 @@ There is now one example script for each public transaction in `pydmp.core`.
 - `TransactionBypassZone` -> `bypass_zone.py`
 - `TransactionUnbypassZone` -> `unbypass_zone.py`
 - `TransactionSetOutput` -> `set_output.py`
+- `TransactionAlarmSilence` -> `alarm_silence.py`
 
 `TransactionWriteUser` is intentionally not represented here because it is still
 kept experimental and off the public core surface.
@@ -200,9 +208,9 @@ Start here. These examples are intended to observe panel state, not change it.
   - `python3 query_all_areas_and_zones.py --host 192.168.1.123 --port 8011 --account 12345`
 
 - `query_specific_zones.py`
-  - Reads one seeded `?WB` sweep through `TransactionQuerySpecificZones`.
+  - Reads one seeded `?WB` page through `TransactionQuerySpecificZones`.
   - `python3 query_specific_zones.py --host 192.168.1.123 --port 8011 --account 12345 --area 01 --start-zone 001`
-  - `python3 query_specific_zones.py --host 192.168.1.123 --port 8011 --account 12345 --area 01 --start-zone 500 --end-zone 550 --no-global-zones --show-raw`
+  - `python3 query_specific_zones.py --host 192.168.1.123 --port 8011 --account 12345 --area 00 --start-zone 580 --show-raw`
 
 - `query_area_settings.py`
   - Reads one `?Za` area-settings record.
@@ -224,6 +232,16 @@ Start here. These examples are intended to observe panel state, not change it.
   - Reads output status from `?WQ`.
   - `python3 query_outputs.py --host 192.168.1.123 --port 8011 --account 12345`
   - `python3 query_outputs.py --host 192.168.1.123 --port 8011 --account 12345 --namespace D --include-unnamed`
+
+- `query_specific_outputs.py`
+  - Reads selected output selectors without walking the whole `?WQ` namespace.
+  - `python3 query_specific_outputs.py --host 192.168.1.123 --port 8011 --account 12345 001 580 581`
+  - `python3 query_specific_outputs.py --host 192.168.1.123 --port 8011 --account 12345 001 D01 --show-all-records --show-raw`
+
+- `query_output_information.py`
+  - Reads lowercase `?Zi` Output Information rows: local output names plus Output Real-Time Status, with backend-shaped rows preserved.
+  - `python3 query_output_information.py --host 192.168.1.123 --port 8011 --account 12345`
+  - `python3 query_output_information.py --host 192.168.1.123 --port 8011 --account 12345 --start-selector 580 --show-raw`
 
 - `query_system_options.py`
   - Reads the packed `?Zo` System Options record.
@@ -285,10 +303,17 @@ Important warning:
   - The still-questionable modes `W`, `a`, and `t` are intentionally not documented here.
   - `python3 set_output.py --host 192.168.1.123 --port 8011 --account 12345 --output 1 --mode S --confirm-live-write`
 
+- `alarm_silence.py`
+  - Sends the firmware-special `!Q000O` alarm-silence command.
+  - This is not output selector `000`; it is a named global silence path.
+  - `python3 alarm_silence.py --host 192.168.1.123 --port 8011 --account 12345 --confirm-live-write`
+
 ## Notes
 
 - `set_output.py` is intentionally conservative. Poll outputs first and keep writes limited
   to selectors that the panel already reported as valid.
+- `alarm_silence.py` is intentionally separate from `set_output.py`; selector `000`
+  stays blocked from normal output writes.
 - The listener example writes a timestamped log file under `examples/logs/` unless you pass
   `--log-path`.
 - The listener examples assume the panel is configured to send Integrator push traffic to

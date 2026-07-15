@@ -16,6 +16,9 @@ from .zone_control import normalize_zone_number
 ZONE_SETTINGS_RECORD_SEPARATOR = b"\x1e"
 ZONE_SETTINGS_REPLY_PREFIXES = (b"*ZL", b"!ZL", b"?ZL", b"*Zl", b"!Zl", b"?Zl")
 ZONE_SETTINGS_FIXED_LENGTH = 98
+ZONE_SETTINGS_LEGACY_FIXED_LENGTH = 83
+ZONE_SETTINGS_LAYOUT_CURRENT_98 = "current_98"
+ZONE_SETTINGS_LAYOUT_LEGACY_83 = "legacy_83"
 ZONE_SETTINGS_TERMINATOR = b"---"
 ZONE_SETTINGS_NAME_MAX_LENGTH = 32
 ZONE_SETTINGS_FLAG_VALUES = frozenset("YN")
@@ -79,14 +82,15 @@ class ZoneSettingsRecord:
     follow_area: str
     zone_audit_days: str
     traffic_count: str
-    chime: str
-    wireless_pir_pet_immunity: str
-    lockdown: str
-    internal_type5_slot: str
-    compatible_wireless: str
-    expander_serial: str
+    chime: str | None
+    wireless_pir_pet_immunity: str | None
+    lockdown: str | None
+    internal_type5_slot: str | None
+    compatible_wireless: str | None
+    expander_serial: str | None
     name: str
     name_prefix: str = ""
+    layout: str = ZONE_SETTINGS_LAYOUT_CURRENT_98
 
     @property
     def unused(self) -> bool:
@@ -379,11 +383,20 @@ def parse_zone_settings_page(reply: bytes) -> ZoneSettingsPage:
 
 def _parse_zone_settings_record(raw_record: bytes) -> ZoneSettingsRecord:
     """Parse one fixed-body `?ZL`/`?Zl` row."""
-    if len(raw_record) < ZONE_SETTINGS_FIXED_LENGTH:
+    if len(raw_record) >= ZONE_SETTINGS_FIXED_LENGTH:
+        fixed_length = ZONE_SETTINGS_FIXED_LENGTH
+        layout = ZONE_SETTINGS_LAYOUT_CURRENT_98
+    elif len(raw_record) >= ZONE_SETTINGS_LEGACY_FIXED_LENGTH:
+        fixed_length = ZONE_SETTINGS_LEGACY_FIXED_LENGTH
+        layout = ZONE_SETTINGS_LAYOUT_LEGACY_83
+    else:
         raise SessionProtocolError(f"Malformed ?ZL zone-settings record: {raw_record!r}")
 
-    fixed = raw_record[:ZONE_SETTINGS_FIXED_LENGTH]
-    name_prefix, name = _split_zone_settings_name_tail(raw_record)
+    fixed = raw_record[:fixed_length]
+    name_prefix, name = _split_zone_settings_name_tail(
+        raw_record,
+        fixed_length=fixed_length,
+    )
     number_value = _parse_decimal_field(
         fixed[0:3],
         raw_record=raw_record,
@@ -422,6 +435,47 @@ def _parse_zone_settings_record(raw_record: bytes) -> ZoneSettingsRecord:
         raw_record=raw_record,
         label="armed short",
     )
+    chime: str | None = None
+    wireless_pir_pet_immunity: str | None = None
+    lockdown: str | None = None
+    internal_type5_slot: str | None = None
+    compatible_wireless: str | None = None
+    expander_serial: str | None = None
+
+    if layout == ZONE_SETTINGS_LAYOUT_CURRENT_98:
+        chime = _parse_digit_in_range(
+            fixed[83:84],
+            raw_record=raw_record,
+            label="chime",
+            minimum=0,
+            maximum=3,
+        )
+        wireless_pir_pet_immunity = _decode_enum(
+            fixed[84:85],
+            raw_record=raw_record,
+            label="wireless PIR pet immunity",
+            values=ZONE_SETTINGS_FLAG54_VALUES,
+        )
+        lockdown = _decode_ascii(
+            fixed[85:86],
+            raw_record=raw_record,
+            label="lockdown",
+        )
+        internal_type5_slot = _decode_ascii(
+            fixed[86:87],
+            raw_record=raw_record,
+            label="internal type-5 slot",
+        )
+        compatible_wireless = _parse_flag(
+            fixed[87:88],
+            raw_record=raw_record,
+            label="compatible wireless",
+        )
+        expander_serial = _decode_ascii(
+            fixed[88:98],
+            raw_record=raw_record,
+            label="expander serial",
+        )
 
     return ZoneSettingsRecord(
         number=f"{number_value:03d}",
@@ -549,41 +603,15 @@ def _parse_zone_settings_record(raw_record: bytes) -> ZoneSettingsRecord:
             raw_record=raw_record,
         ),
         traffic_count=_parse_flag(fixed[82:83], raw_record=raw_record, label="traffic count"),
-        chime=_parse_digit_in_range(
-            fixed[83:84],
-            raw_record=raw_record,
-            label="chime",
-            minimum=0,
-            maximum=3,
-        ),
-        wireless_pir_pet_immunity=_decode_enum(
-            fixed[84:85],
-            raw_record=raw_record,
-            label="wireless PIR pet immunity",
-            values=ZONE_SETTINGS_FLAG54_VALUES,
-        ),
-        lockdown=_decode_ascii(
-            fixed[85:86],
-            raw_record=raw_record,
-            label="lockdown",
-        ),
-        internal_type5_slot=_decode_ascii(
-            fixed[86:87],
-            raw_record=raw_record,
-            label="internal type-5 slot",
-        ),
-        compatible_wireless=_parse_flag(
-            fixed[87:88],
-            raw_record=raw_record,
-            label="compatible wireless",
-        ),
-        expander_serial=_decode_ascii(
-            fixed[88:98],
-            raw_record=raw_record,
-            label="expander serial",
-        ),
+        chime=chime,
+        wireless_pir_pet_immunity=wireless_pir_pet_immunity,
+        lockdown=lockdown,
+        internal_type5_slot=internal_type5_slot,
+        compatible_wireless=compatible_wireless,
+        expander_serial=expander_serial,
         name=name,
         name_prefix=name_prefix,
+        layout=layout,
     )
 
 
@@ -709,15 +737,19 @@ def _decode_zone_settings_name(raw_name: bytes, *, raw_record: bytes) -> str:
     return name
 
 
-def _split_zone_settings_name_tail(raw_record: bytes) -> tuple[str, str]:
-    """Split the shared 98-byte fixed body from the visible zone name tail.
+def _split_zone_settings_name_tail(
+    raw_record: bytes,
+    *,
+    fixed_length: int,
+) -> tuple[str, str]:
+    """Split the fixed body from the visible zone name tail.
 
     Most records place the name directly at offset 98. A later live capture
     also showed a two-byte `-N` prefix before the visible name on one direct
     uppercase row. Preserve that prefix separately and return the cleaned
     visible name.
     """
-    raw_name = raw_record[ZONE_SETTINGS_FIXED_LENGTH:]
+    raw_name = raw_record[fixed_length:]
     if len(raw_name) >= 2:
         prefix = raw_name[:2]
         first = prefix[:1]

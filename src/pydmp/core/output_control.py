@@ -1,7 +1,8 @@
-"""Stateless `!Q` output-control transaction and reply parsing.
+"""Stateless `!Q` output-control transactions and reply parsing.
 
-`!Q` writes one output selector and one mode byte. This module keeps that
-surface narrow on purpose: one selector, one normalized mode, one parsed reply.
+Normal `!Q` writes one output selector and one mode byte. The special
+`!Q000O` alarm-silence path is exposed separately so selector `000` does not
+become ordinary output control by accident.
 """
 
 from __future__ import annotations
@@ -40,6 +41,9 @@ OUTPUT_CONTROL_MODE_ALIASES = {
     "m": OutputControlMode.MOMENTARY.value,
     "w": OutputControlMode.RAW_W.value,
 }
+ALARM_SILENCE_SELECTOR = "000"
+ALARM_SILENCE_MODE = OutputControlMode.OFF.value
+ALARM_SILENCE_COMMAND_BODY = f"!Q{ALARM_SILENCE_SELECTOR}{ALARM_SILENCE_MODE}"
 
 
 @dataclass(slots=True)
@@ -74,6 +78,20 @@ class TransactionSetOutput(Transaction):
         super().__init__(body=f"!Q{normalized_selector}{normalized_mode}", completion=ack_or_deny(), label="set_output", parser=lambda reply: parse_output_control_reply(reply, selector=normalized_selector, mode=normalized_mode))
 
 
+class TransactionAlarmSilence(Transaction):
+    """Run the firmware-special `!Q000O` alarm-silence command.
+
+    Selector `000` is intentionally not part of normal output control. Project
+    notes and live testing show `!Q000O` follows a special global silence path,
+    so this transaction keeps that behavior named and separate.
+    """
+
+    __slots__ = ()
+
+    def __init__(self) -> None:
+        super().__init__(body=ALARM_SILENCE_COMMAND_BODY, completion=ack_or_deny(), label="alarm_silence", parser=parse_alarm_silence_reply)
+
+
 def normalize_output_control_mode(mode: str | OutputControlMode) -> str:
     """Return one project-valid `!Q` mode byte.
 
@@ -102,6 +120,16 @@ def normalize_output_control_mode(mode: str | OutputControlMode) -> str:
         return alias
 
     raise ValueError("Output control mode must be one of O, P, S, M, T, W, a, or t")
+
+
+def parse_alarm_silence_reply(reply: bytes) -> OutputControlReply:
+    """Parse one local panel reply for `!Q000O`."""
+
+    return parse_output_control_reply(
+        reply,
+        selector=ALARM_SILENCE_SELECTOR,
+        mode=ALARM_SILENCE_MODE,
+    )
 
 
 def parse_output_control_reply(

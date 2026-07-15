@@ -156,7 +156,7 @@ def test_transaction_query_all_areas_and_zones_is_explicit_full_snapshot_alias()
 
 
 @pytest.mark.asyncio
-async def test_transaction_query_specific_zones_runs_one_area_seeded_sweep_with_range_filter():
+async def test_transaction_query_specific_zones_reads_one_seeded_page_with_range_filter():
     factory, transports = make_transport_factory(
         scripted_replies=[
             b"\x02@ 12345+V02012345\r",
@@ -165,7 +165,6 @@ async def test_transaction_query_specific_zones_runs_one_area_seeded_sweep_with_
                 b"L500NDOOR500\x1eL501OWINDOW501\x1eL502SZONE502\x1e"
                 b"L503NAFTER\x1e-\r\x00"
             ),
-            b"\x02@ 12345*WB-\r\x00",
             b"\x02@ 12345+V\r",
         ]
     )
@@ -181,12 +180,14 @@ async def test_transaction_query_specific_zones_runs_one_area_seeded_sweep_with_
                 "1",
                 start_zone="500",
                 end_zone="502",
-                include_global_zones=False,
+                include_global_zones=True,
             )
         )
         assert isinstance(transaction.parsed_response, ZoneStatusReply)
         assert transaction.parsed_response.complete is True
         assert transaction.parsed_response.areas == []
+        assert transaction.query_flag == "N"
+        assert transaction.include_global_zones is False
         assert [
             (zone.number, zone.area_number, zone.status, zone.name)
             for zone in transaction.parsed_response.zones
@@ -197,7 +198,6 @@ async def test_transaction_query_specific_zones_runs_one_area_seeded_sweep_with_
         ]
         assert transaction.wire_requests == [
             b"@12345?WB01N500\r",
-            b"@12345?WB\r",
         ]
         assert transports[0].requests[1:] == transaction.wire_requests
     finally:
@@ -205,12 +205,11 @@ async def test_transaction_query_specific_zones_runs_one_area_seeded_sweep_with_
 
 
 @pytest.mark.asyncio
-async def test_core_panel_client_query_zones_with_area_runs_narrow_sweep():
+async def test_core_panel_client_query_zones_with_area_reads_one_seeded_page():
     factory, transports = make_transport_factory(
         scripted_replies=[
             b"\x02@ 12345+V02012345\r",
-            b"\x02@ 12345*WBA002DINTERIOR\x1eL005NMOTION1\x1e-\r\x00",
-            b"\x02@ 12345*WB-\r\x00",
+            b"\x02@ 12345*WBL005NMOTION1\x1e-\r\x00",
             b"\x02@ 12345+V\r",
         ]
     )
@@ -226,8 +225,40 @@ async def test_core_panel_client_query_zones_with_area_runs_narrow_sweep():
             ("005", "02", "N", "MOTION1"),
         ]
         assert transports[0].requests[1:] == [
-            b"@12345?WB02Y001\r",
-            b"@12345?WB\r",
+            b"@12345?WB02N001\r",
+        ]
+    finally:
+        await client.close()
+
+
+@pytest.mark.asyncio
+async def test_transaction_query_specific_zones_uses_y_flag_for_area_zero():
+    factory, transports = make_transport_factory(
+        scripted_replies=[
+            b"\x02@ 12345+V02012345\r",
+            b"\x02@ 12345*WBL580N716SUP\x1e-\r\x00",
+            b"\x02@ 12345+V\r",
+        ]
+    )
+    client = CorePanelClient(
+        PanelEndpoint(host="panel", account="12345", idle_disconnect_seconds=0.01),
+        session_profile=SessionProfileBlankV2(),
+        transport_factory=factory,
+    )
+
+    try:
+        transaction = await client.manager.submit(
+            TransactionQuerySpecificZones(0, start_zone=580)
+        )
+        assert isinstance(transaction.parsed_response, ZoneStatusReply)
+        assert transaction.query_flag == "Y"
+        assert transaction.include_global_zones is True
+        assert [
+            (zone.number, zone.area_number, zone.status, zone.name)
+            for zone in transaction.parsed_response.zones
+        ] == [("580", "00", "N", "716SUP")]
+        assert transports[0].requests[1:] == [
+            b"@12345?WB00Y580\r",
         ]
     finally:
         await client.close()

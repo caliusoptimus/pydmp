@@ -25,6 +25,7 @@ ZONE_QUERY_MAX_PAGES = 256
 ZONE_NAME_MAX_LENGTH = 32
 ZONE_STATUS_CHARS = frozenset("NLOMSX")
 ZONE_AREA_STATUS_CHARS = frozenset("ADS")
+ZONE_AREA_EMIT_FLAG = "N"
 
 
 @dataclass(slots=True)
@@ -136,19 +137,23 @@ class TransactionQueryAllAreasAndZones(TransactionQueryZones):
 
 
 class TransactionQuerySpecificZones(Transaction):
-    """One seeded `?WB` zone-status iterator.
+    """One seeded `?WB` zone-status page.
 
-    This is the narrow zone-status transaction: it starts one `?WB` sweep for a
-    specific area selector and optional start selector. `end_zone` is an
-    inclusive client-side result filter; the panel protocol does not expose a
-    known wire-level end selector, so the iterator still runs until the normal
-    empty terminal page.
+    This is the narrow zone-status transaction: it sends one `?WB` request for
+    a specific area selector and optional start selector, then parses only that
+    reply page. It does not send bare `?WB` continuations.
+
+    `end_zone` is an inclusive client-side result filter for rows present on
+    that one returned page; the panel protocol does not expose a known
+    wire-level end selector. The `?WB` flag is selected automatically: area
+    `00` and wildcard `**` use `Y`, while areas `01`-`32` use `N`.
     """
 
     __slots__ = (
         "area_number",
         "start_zone",
         "end_zone",
+        "query_flag",
         "include_global_zones",
     )
 
@@ -158,8 +163,9 @@ class TransactionQuerySpecificZones(Transaction):
         *,
         start_zone: int | str = ZONE_START_ZONE,
         end_zone: int | str | None = None,
-        include_global_zones: bool = True,
+        include_global_zones: bool | None = None,
     ) -> None:
+        del include_global_zones
         self.area_number = normalize_zone_query_area(area_number)
         self.start_zone = normalize_zone_query_selector(start_zone, label="start zone")
         self.end_zone = (
@@ -168,7 +174,8 @@ class TransactionQuerySpecificZones(Transaction):
             else normalize_zone_query_selector(end_zone, label="end zone")
         )
         validate_zone_query_range(start_zone=self.start_zone, end_zone=self.end_zone)
-        self.include_global_zones = include_global_zones
+        self.query_flag = _select_specific_zone_query_flag(self.area_number)
+        self.include_global_zones = self.query_flag == ZONE_EMIT_FLAG
         super().__init__(
             body=_build_zone_query_body(
                 area_number=self.area_number,
@@ -187,22 +194,33 @@ class TransactionQuerySpecificZones(Transaction):
         endpoint=None,
     ) -> Transaction:
         del endpoint
-        sweep = await collect_zone_status_pages(
-            self,
-            exchange,
-            initial_body=self.body,
-            session_mode=session_mode,
+        exchange_result = await exchange(self.body, self.completion)
+        self.record_exchange(exchange_result, session_mode=session_mode)
+
+        if exchange_result.response is None:
+            raise SessionProtocolError(
+                "Specific zone query completed without a reply payload"
+            )
+
+        initial_area_number = (
+            ZONE_GLOBAL_AREA_NUMBER
+            if self.area_number == ZONE_WILDCARD_AREA_SELECTOR
+            else self.area_number
+        )
+        page = parse_zone_status_page(
+            exchange_result.response,
+            current_area_number=initial_area_number,
         )
         zones = _filter_zone_status_range(
-            sweep.zones,
+            page.zones,
             start_zone=self.start_zone,
             end_zone=self.end_zone,
         )
         self.parsed_response = ZoneStatusReply(
             zones=sorted(zones, key=lambda zone: int(zone.number)),
             areas=[],
-            complete=sweep.complete,
-            raw_replies=sweep.raw_replies,
+            complete=page.complete,
+            raw_replies=[page.raw_reply],
         )
         return self
 
@@ -356,7 +374,7 @@ def parse_zone_status_page(
 
 
 def normalize_zone_query_area(area_number: int | str | None) -> str:
-    """Normalize a `?WB` area selector to `01`-`32` or wildcard `**`."""
+    """Normalize a `?WB` area selector to `00`-`32` or wildcard `**`."""
     if area_number is None:
         return ZONE_WILDCARD_AREA_SELECTOR
     text = str(area_number).strip()
@@ -365,8 +383,8 @@ def normalize_zone_query_area(area_number: int | str | None) -> str:
     if not text.isdigit():
         raise ValueError(f"Zone query area must be numeric or '**', got: {area_number!r}")
     value = int(text)
-    if not 1 <= value <= 32:
-        raise ValueError(f"Zone query area must be between 1 and 32, got: {value}")
+    if not 0 <= value <= 32:
+        raise ValueError(f"Zone query area must be between 0 and 32, got: {value}")
     return f"{value:02d}"
 
 
@@ -393,8 +411,14 @@ def _build_zone_query_body(
     start_zone: str,
     include_global_zones: bool,
 ) -> str:
-    emit_flag = ZONE_EMIT_FLAG if include_global_zones else "N"
+    emit_flag = ZONE_EMIT_FLAG if include_global_zones else ZONE_AREA_EMIT_FLAG
     return f"?WB{area_number}{emit_flag}{start_zone}"
+
+
+def _select_specific_zone_query_flag(area_number: str) -> str:
+    if area_number in {ZONE_GLOBAL_AREA_NUMBER, ZONE_WILDCARD_AREA_SELECTOR}:
+        return ZONE_EMIT_FLAG
+    return ZONE_AREA_EMIT_FLAG
 
 
 def _filter_zone_status_range(

@@ -313,6 +313,7 @@ pydmp listen --json --duration 10 | jq
 | `!X[ZZZ]` | Bypass zone | `@[ACCT]!X005\r` |
 | `!Y[ZZZ]` | Restore zone | `@[ACCT]!Y005\r` |
 | `!Q[NNN][M]` | Set output | `@[ACCT]!Q001P\r` |
+| `!Q000O` | Alarm silence | `@[ACCT]!Q000O\r` |
 
 ## Architecture
 

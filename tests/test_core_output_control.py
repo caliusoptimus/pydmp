@@ -8,8 +8,10 @@ from pydmp.core import (
     OutputControlReply,
     PanelEndpoint,
     SessionProfileBlankV2,
+    TransactionAlarmSilence,
     TransactionSetOutput,
     normalize_output_control_mode,
+    parse_alarm_silence_reply,
     parse_output_control_reply,
 )
 
@@ -84,6 +86,14 @@ def test_transaction_set_output_shape():
         TransactionSetOutput(0, "off")
 
 
+def test_transaction_alarm_silence_shape():
+    transaction = TransactionAlarmSilence()
+
+    assert transaction.body == "!Q000O"
+    assert transaction.label == "alarm_silence"
+    assert transaction.parser is parse_alarm_silence_reply
+
+
 def test_parse_output_control_replies():
     assert parse_output_control_reply(b"\x02@ 12345+Q\r\x00") == OutputControlReply(
         selector=None,
@@ -118,6 +128,21 @@ def test_parse_output_control_replies():
     )
 
 
+def test_parse_alarm_silence_reply_uses_special_selector():
+    assert parse_alarm_silence_reply(b"\x02@ 12345+Q\r\x00") == OutputControlReply(
+        selector="000",
+        mode="O",
+        acknowledged=True,
+        detail=None,
+    )
+    assert parse_alarm_silence_reply(b"\x02@ 12345-QV\r\x00") == OutputControlReply(
+        selector="000",
+        mode="O",
+        acknowledged=False,
+        detail="QV",
+    )
+
+
 @pytest.mark.asyncio
 async def test_core_panel_client_set_output_over_blank_v2():
     factory, transports = make_transport_factory(
@@ -149,6 +174,31 @@ async def test_core_panel_client_set_output_over_blank_v2():
         assert transports[0].requests[0] == b"@12345!V2                \r"
         assert transports[0].requests[1] == b"@12345!Q001S\r"
         assert transports[0].requests[2] == b"@12345!QD01P\r"
+    finally:
+        await client.close()
+
+
+@pytest.mark.asyncio
+async def test_core_panel_client_alarm_silence_over_blank_v2():
+    factory, transports = make_transport_factory(
+        scripted_replies=[
+            b"\x02@ 12345+V02012345\r",
+            b"\x02@ 12345+Q\r\x00",
+            b"\x02@ 12345+V\r",
+        ]
+    )
+    client = CorePanelClient(PanelEndpoint(host="panel", account="12345", idle_disconnect_seconds=0.01), session_profile=SessionProfileBlankV2(), transport_factory=factory)
+
+    try:
+        reply = await client.alarm_silence()
+        assert reply == OutputControlReply(
+            selector="000",
+            mode="O",
+            acknowledged=True,
+            detail=None,
+        )
+        assert transports[0].requests[0] == b"@12345!V2                \r"
+        assert transports[0].requests[1] == b"@12345!Q000O\r"
     finally:
         await client.close()
 

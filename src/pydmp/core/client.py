@@ -16,7 +16,7 @@ If you want a future high-level stateful facade, it should sit above this file.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 
 from .area_control import (
     AreaControlReply,
@@ -31,9 +31,17 @@ from .area_status import (
 from .lockout_code import LockoutCodeReply, TransactionQueryLockoutCode
 from .manager import CommandSessionManager
 from .models import PanelEndpoint
-from .output_control import OutputControlReply, TransactionSetOutput
+from .output_control import OutputControlReply, TransactionAlarmSilence, TransactionSetOutput
 from .output_control import OutputControlMode
-from .output_status import OutputStatusReply, TransactionQueryOutputs
+from .output_information import (
+    OutputInformationReply,
+    TransactionQueryOutputInformation,
+)
+from .output_status import (
+    OutputStatusReply,
+    TransactionQueryOutputs,
+    TransactionQuerySpecificOutputs,
+)
 from .profiles import ProfileReply, TransactionQueryProfiles
 from .sensor_reset import SensorResetReply, TransactionSensorReset
 from .sessions import SessionProfile, SessionProfileBlankV2
@@ -155,19 +163,22 @@ class CorePanelClient:
         With no arguments, this preserves the historical high-level helper
         behavior and returns the full area-discovered snapshot.
 
-        Passing `area_number` runs one area-scoped `?WB` iterator instead. The
+        Passing `area_number` reads one area-scoped `?WB` page instead. The
         optional `start_zone` is sent in the seed request. `end_zone` filters
-        returned records client-side because the panel protocol does not expose
-        a known wire-level end selector.
+        records from that one returned page because the panel protocol does not
+        expose a known wire-level end selector. The `?WB` flag is selected from
+        `area_number`: area `00` uses `Y`, areas `01`-`32` use `N`.
+        `include_global_zones` is accepted only for older callers and is ignored
+        for targeted reads.
         """
-        if area_number is None and start_zone == "001" and end_zone is None and include_global_zones:
+        del include_global_zones
+        if area_number is None and start_zone == "001" and end_zone is None:
             return await self.query_all_areas_and_zones()
         transaction = await self._manager.submit(
             TransactionQuerySpecificZones(
                 area_number,
                 start_zone=start_zone,
                 end_zone=end_zone,
-                include_global_zones=include_global_zones,
             )
         )
         parsed = transaction.parsed_response
@@ -222,6 +233,49 @@ class CorePanelClient:
             raise ValueError("Query completed without a parsed WQ reply")
         return parsed
 
+    async def query_specific_outputs(
+        self,
+        selectors: int | str | Iterable[int | str],
+        *,
+        named_only: bool = False,
+    ) -> OutputStatusReply:
+        """Return status for selected `?WQ` output selectors.
+
+        The panel still returns normal WQ pages, so one requested seed can
+        satisfy several selectors. This helper avoids the full namespace walk
+        used by `query_outputs()`.
+        """
+        transaction = await self._manager.submit(
+            TransactionQuerySpecificOutputs(selectors, named_only=named_only)
+        )
+        parsed = transaction.parsed_response
+        if not isinstance(parsed, OutputStatusReply):
+            raise ValueError("Query completed without a parsed WQ reply")
+        return parsed
+
+    async def query_output_information(
+        self,
+        start_selector: int | str = "001",
+        *,
+        max_pages: int = 200,
+    ) -> OutputInformationReply:
+        """Return output information records from lowercase `?Zi`.
+
+        This is not an output-state poll. For local outputs it returns the
+        configured output name plus the Output Real-Time Status flag. Backend
+        rows are parsed conservatively and preserved for later validation.
+        """
+        transaction = await self._manager.submit(
+            TransactionQueryOutputInformation(
+                start_selector,
+                max_pages=max_pages,
+            )
+        )
+        parsed = transaction.parsed_response
+        if not isinstance(parsed, OutputInformationReply):
+            raise ValueError("Query completed without a parsed Zi reply")
+        return parsed
+
     async def set_output(
         self,
         selector: int | str,
@@ -253,6 +307,14 @@ class CorePanelClient:
     async def momentary_output(self, selector: int | str) -> OutputControlReply:
         """Momentarily activate one output selector with `!Q...M`."""
         return await self.set_output(selector, "M")
+
+    async def alarm_silence(self) -> OutputControlReply:
+        """Send the firmware-special `!Q000O` alarm-silence command."""
+        transaction = await self._manager.submit(TransactionAlarmSilence())
+        parsed = transaction.parsed_response
+        if not isinstance(parsed, OutputControlReply):
+            raise ValueError("Command completed without a parsed Q reply")
+        return parsed
 
     async def query_lockout_code(self) -> LockoutCodeReply:
         """Return the current `?ZZ` lockout-code value."""

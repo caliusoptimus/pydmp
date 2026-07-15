@@ -7,6 +7,7 @@ callers to inspect the raw mixed rows too.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Final
 
@@ -188,6 +189,109 @@ class TransactionQueryOutputs(Transaction):
             selector = next_selector
 
         raise SessionProtocolError("Output query exceeded max page count")
+
+
+class TransactionQuerySpecificOutputs(Transaction):
+    """Query selected `?WQ` selectors without walking the whole namespace.
+
+    Each request still returns a normal `?WQ` page, so one seed may satisfy
+    several requested selectors. The transaction samples the lowest pending
+    selector first so one page can satisfy later requested selectors when the
+    panel returns them together. `complete` means every requested selector was
+    observed, not that the panel namespace was exhausted.
+    """
+
+    __slots__ = ("named_only", "selectors")
+
+    def __init__(
+        self,
+        selectors: int | str | Iterable[int | str],
+        *,
+        named_only: bool = False,
+    ) -> None:
+        normalized_selectors = normalize_output_selectors(selectors)
+        super().__init__(
+            body=f"?WQ{normalized_selectors[0]}",
+            completion=payload_required(),
+            label="query_specific_outputs",
+        )
+        self.selectors = normalized_selectors
+        self.named_only = bool(named_only)
+
+    async def execute_in_session(
+        self,
+        exchange: TransactionRunner,
+        *,
+        session_mode,
+        endpoint: PanelEndpoint | None = None,
+    ) -> Transaction:
+        del endpoint
+
+        requested = set(self.selectors)
+        pending = set(self.selectors)
+        sampled: set[str] = set()
+        found: dict[str, OutputStatusRecord] = {}
+        all_records_by_selector: dict[str, OutputStatusRecord] = {}
+        raw_replies: list[bytes] = []
+
+        while unsampled := (pending - sampled):
+            selector = _next_specific_output_query_selector(unsampled)
+            sampled.add(selector)
+
+            exchange_result = await exchange(f"?WQ{selector}", self.completion)
+            self.record_exchange(exchange_result, session_mode=session_mode)
+
+            if exchange_result.response is None:
+                raise SessionProtocolError(
+                    "Specific output query completed without a reply payload"
+                )
+
+            page = parse_output_status_page(exchange_result.response)
+            raw_replies.append(page.raw_reply)
+
+            if page.empty_terminal_page:
+                continue
+
+            for record in page.records:
+                all_records_by_selector[record.selector] = record
+                if record.selector in requested:
+                    found[record.selector] = record
+                    pending.discard(record.selector)
+
+        records = [found[selector] for selector in self.selectors if selector in found]
+        if self.named_only:
+            records = [record for record in records if record.is_named_output]
+
+        self.parsed_response = OutputStatusReply(
+            records=records,
+            complete=not pending,
+            raw_replies=raw_replies,
+            all_records=list(all_records_by_selector.values()),
+            namespace="specific",
+            named_only=self.named_only,
+        )
+        return self
+
+
+def normalize_output_selectors(selectors: int | str | Iterable[int | str]) -> tuple[str, ...]:
+    """Normalize and de-duplicate `?WQ` selectors while preserving order."""
+    selector_iterable = (
+        (selectors,) if isinstance(selectors, (int, str)) else selectors
+    )
+    normalized: list[str] = []
+    seen: set[str] = set()
+
+    for selector in selector_iterable:
+        normalized_selector = normalize_output_selector(selector)
+        if normalized_selector in seen:
+            continue
+        normalized.append(normalized_selector)
+        seen.add(normalized_selector)
+
+    if not normalized:
+        raise ValueError("At least one output selector is required")
+
+    return tuple(normalized)
 
 
 def normalize_output_selector(selector: int | str) -> str:
@@ -394,6 +498,19 @@ def _compare_output_selectors(left: str, right: str) -> int:
     if left_family == "numeric":
         return int(left, 10) - int(right, 10)
     return int(left[1:], 10) - int(right[1:], 10)
+
+
+def _next_specific_output_query_selector(pending: set[str]) -> str:
+    """Return the earliest pending selector to maximize useful page overlap."""
+    return min(pending, key=_specific_output_query_sort_key)
+
+
+def _specific_output_query_sort_key(selector: str) -> tuple[int, int]:
+    family = _selector_family(selector)
+    family_order = {"numeric": 0, "D": 1, "F": 2, "G": 3}[family]
+    if family == "numeric":
+        return family_order, int(selector, 10)
+    return family_order, int(selector[1:], 10)
 
 
 def _filter_output_records(

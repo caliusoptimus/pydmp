@@ -1,0 +1,642 @@
+time: 2026-06-14T07:35:22
+transport_mode: secure_s
+account: 12345
+raw_frame: !!S\xcb\x86\x8d+\x8c\x1e\xcb\xba\xea\x8bM\x13\x96P\x91\xf4a\xa3\x1cy!\x01@*t\xe0\x83t+!k\xdb\x1c?]\x04%dK \xcb\x15\xa8\x93\xc9\x9c\x912
+clear_frame: \x0253B8  12345 &    0Zc\\020\\t "DO\\z 001\\\r
+normalized_frame: 53B8  12345 &    0Zc\\020\\t "DO\\z 001\\
+event_definition: Zc
+event_group: zone
+event_kind: zone_state
+event_action: open
+event_type_code: DO
+event_type_name: door open
+event_target_id: 001
+event_target_name: <none>
+event_actor_id: <none>
+event_actor_name: <none>
+event_summary: Zone 001 open
+event_raw: Zc\020\t "DO\z 001\
+event_fields: [
+  "Zc",
+  "020",
+  "t \"DO",
+  "z 001",
+  ""
+]
+event_parser: _parse_zone_push_event
+event_parsed: {
+  "actor_user": null,
+  "actor_user_name": null,
+  "area": null,
+  "area_name": null,
+  "definition": "Zc",
+  "device": null,
+  "device_name": null,
+  "event_code": "020",
+  "target_kind": "zone",
+  "type_code": "DO",
+  "zone": "001",
+  "zone_name": null
+}
+ack_frame: !!S\x1a\xb6=\xd8\x8b\xddO~\xa2\xbdF}\xd0\x11\xa3\xff
+wrapper_crc_hex: 53B8
+wrapper_crc_calc: 53B8
+wrapper_crc_valid: True
+route_token:   
+delivery_field: None
+
+time: 2026-06-14T07:35:27
+transport_mode: secure_s
+account: 12345
+raw_frame: !!S\xa6/"\xe5R\x90\xfew\x95d\xad\xb9\xdf^;\x0ea\xa3\x1cy!\x01@*t\xe0\x83t+!k\xdb\xee\xc5\xfa\xd1\xef\xe8]kN\x17\x83L\t\x84H\xa0
+clear_frame: \x0253ED  12345 &    0Zc\\020\\t "DC\\z 001\\\r
+normalized_frame: 53ED  12345 &    0Zc\\020\\t "DC\\z 001\\
+event_definition: Zc
+event_group: zone
+event_kind: zone_state
+event_action: closed
+event_type_code: DC
+event_type_name: door closed
+event_target_id: 001
+event_target_name: <none>
+event_actor_id: <none>
+event_actor_name: <none>
+event_summary: Zone 001 closed
+event_raw: Zc\020\t "DC\z 001\
+event_fields: [
+  "Zc",
+  "020",
+  "t \"DC",
+  "z 001",
+  ""
+]
+event_parser: _parse_zone_push_event
+event_parsed: {
+  "actor_user": null,
+  "actor_user_name": null,
+  "area": null,
+  "area_name": null,
+  "definition": "Zc",
+  "device": null,
+  "device_name": null,
+  "event_code": "020",
+  "target_kind": "zone",
+  "type_code": "DC",
+  "zone": "001",
+  "zone_name": null
+}
+ack_frame: !!Sr\xba\x9b\n\xdd\xdd)C\xa8hN:f\t*s
+wrapper_crc_hex: 53ED
+wrapper_crc_calc: 53ED
+wrapper_crc_valid: True
+route_token:   
+delivery_field: None
+
+time: 2026-06-14T07:35:47
+transport_mode: secure_s
+account: 12345
+raw_frame: !!S\x91\x1c\x83e\x9b\xbb\xa1\x93\xed[\x0c\xa6S\xcf\xd4\t\xe31\xd2\xbe\xe3Z\x0f\xca,\x9dO3oC\x1f&\xe5\x94=\x99^\x05\xdc\xf4\x15#T\x06\xf0\xe7\xc3\x92AX\x089)j\xe6\xba!\xeb'\x89\x7f-4V8>\x9dx\x86'\xa1=\xffN9{b$s\x1d\xcdT\xe1~\x06\xdf\xf1E\x0e#\xcd\xc6\xa1\x8f\xce\x93
+clear_frame: \x02C488  12345 &    0Zq\\062\\t "CL\\u 00000"NO CODE REQUIRED\\a 001"PERIMETER       \\\r
+normalized_frame: C488  12345 &    0Zq\\062\\t "CL\\u 00000"NO CODE REQUIRED\\a 001"PERIMETER       \\
+event_definition: Zq
+event_group: area
+event_kind: area_state
+event_action: armed
+event_type_code: CL
+event_type_name: armed
+event_target_id: 001
+event_target_name: PERIMETER
+event_actor_id: 00000
+event_actor_name: NO CODE REQUIRED
+event_summary: Area 001 PERIMETER armed by 00000 NO CODE REQUIRED
+event_raw: Zq\062\t "CL\u 00000"NO CODE REQUIRED\a 001"PERIMETER       \
+event_fields: [
+  "Zq",
+  "062",
+  "t \"CL",
+  "u 00000\"NO CODE REQUIRED",
+  "a 001\"PERIMETER       ",
+  ""
+]
+event_parser: _parse_tagged_push_event
+event_parsed: {
+  "area": "001",
+  "area_name": "PERIMETER",
+  "definition": "Zq",
+  "device": null,
+  "device_name": null,
+  "event_code": "062",
+  "event_qualifier": null,
+  "path_number": null,
+  "path_role": null,
+  "path_transport": null,
+  "system_code": null,
+  "system_text": null,
+  "target_user": null,
+  "target_user_name": null,
+  "type_code": "CL",
+  "user": "00000",
+  "user_name": "NO CODE REQUIRED",
+  "zone": null,
+  "zone_name": null
+}
+ack_frame: !!S\x1e\xa1\xa9\xb7[\xf9\x15\x9f]\xb4Uw\xa6\xa5\xbb\x00
+wrapper_crc_hex: C488
+wrapper_crc_calc: C488
+wrapper_crc_valid: True
+route_token:   
+delivery_field: None
+
+time: 2026-06-14T07:36:39
+transport_mode: secure_s
+account: 12345
+raw_frame: !!S\x95\xcd\x08\x17\x14\x0c6\xdb M\xc6\xbd\xd7\xb2\xaeYa\xa3\x1cy!\x01@*t\xe0\x83t+!k\xdb\x1c?]\x04%dK \xcb\x15\xa8\x93\xc9\x9c\x912
+clear_frame: \x0253B8  12345 &    0Zc\\020\\t "DO\\z 001\\\r
+normalized_frame: 53B8  12345 &    0Zc\\020\\t "DO\\z 001\\
+event_definition: Zc
+event_group: zone
+event_kind: zone_state
+event_action: open
+event_type_code: DO
+event_type_name: door open
+event_target_id: 001
+event_target_name: <none>
+event_actor_id: <none>
+event_actor_name: <none>
+event_summary: Zone 001 open
+event_raw: Zc\020\t "DO\z 001\
+event_fields: [
+  "Zc",
+  "020",
+  "t \"DO",
+  "z 001",
+  ""
+]
+event_parser: _parse_zone_push_event
+event_parsed: {
+  "actor_user": null,
+  "actor_user_name": null,
+  "area": null,
+  "area_name": null,
+  "definition": "Zc",
+  "device": null,
+  "device_name": null,
+  "event_code": "020",
+  "target_kind": "zone",
+  "type_code": "DO",
+  "zone": "001",
+  "zone_name": null
+}
+ack_frame: !!S\x10\xd9\x06\xc9\xccCn\xa0\xedTn\xd5\x89\xb8\xdc=
+wrapper_crc_hex: 53B8
+wrapper_crc_calc: 53B8
+wrapper_crc_valid: True
+route_token:   
+delivery_field: None
+
+time: 2026-06-14T07:37:09
+transport_mode: secure_s
+account: 12345
+raw_frame: !!S\x9en\x940\xcb`\xed\x1a\xb5\xdf\xb8\x91K;E\xfb\xd2\xf4c(\n\x88\xec9\x91\xb85\x1e1\xde\x14\xe0b\x9e\x99h\xb8\ra\xf6\xd4O\xd79P\x96\xf8\xb8d\x00\xa1L\x918Y^\x82\x13\x0c\xe7\xa8\xae\x83]\xb1\x88\xf2\xef\x87\x13\xa3\xb5@ l\x968ot\x13 \x0f\xe8.\xa8O\x85\x90\xdf\x7f\x9f#\xd5\xfe"+
+clear_frame: \x02F153  12345 &    0Za\\060\\t "BU\\z 001"Z1              \\a 001"PERIMETER       \\\r
+normalized_frame: F153  12345 &    0Za\\060\\t "BU\\z 001"Z1              \\a 001"PERIMETER       \\
+event_definition: Za
+event_group: zone
+event_kind: zone_alarm
+event_action: alarm
+event_type_code: BU
+event_type_name: burglary
+event_target_id: 001
+event_target_name: Z1
+event_actor_id: <none>
+event_actor_name: <none>
+event_summary: Zone 001 Z1 alarm (burglary)
+event_raw: Za\060\t "BU\z 001"Z1              \a 001"PERIMETER       \
+event_fields: [
+  "Za",
+  "060",
+  "t \"BU",
+  "z 001\"Z1              ",
+  "a 001\"PERIMETER       ",
+  ""
+]
+event_parser: _parse_zone_push_event
+event_parsed: {
+  "actor_user": null,
+  "actor_user_name": null,
+  "area": "001",
+  "area_name": "PERIMETER",
+  "definition": "Za",
+  "device": null,
+  "device_name": null,
+  "event_code": "060",
+  "target_kind": "zone",
+  "type_code": "BU",
+  "zone": "001",
+  "zone_name": "Z1"
+}
+ack_frame: !!S\xca\x0b\x83+]\x8d\x03\xa7.\xee\x97\xb4\xe0\xf5\xef\xd1
+wrapper_crc_hex: F153
+wrapper_crc_calc: F153
+wrapper_crc_valid: True
+route_token:   
+delivery_field: None
+
+time: 2026-06-14T07:37:10
+transport_mode: secure_s
+account: 12345
+raw_frame: !!S\x13\xbc\xc8\xc3\x00CRn\x93\x1dQ\xa5/\xf5\x85\x1d\r?5)O\xf5\xa9\xf4\xaay7\xd1O\x18\xf9\xb6\xf5\xa4\xe8\x1dQ\x83\xda\xdc\xc1!\xd5"\xf6\xaf\xd1\xcd
+clear_frame: \x02FEA1  12345 &    0Zs\\014\\t 078\\\r
+normalized_frame: FEA1  12345 &    0Zs\\014\\t 078\\
+event_definition: Zs
+event_group: system
+event_kind: system_message
+event_action: message
+event_type_code: <none>
+event_type_name: System Recently Armed
+event_target_id: <none>
+event_target_name: <none>
+event_actor_id: <none>
+event_actor_name: <none>
+event_summary: System message System Recently Armed
+event_raw: Zs\014\t 078\
+event_fields: [
+  "Zs",
+  "014",
+  "t 078",
+  ""
+]
+event_parser: _parse_tagged_push_event
+event_parsed: {
+  "area": null,
+  "area_name": null,
+  "definition": "Zs",
+  "device": null,
+  "device_name": null,
+  "event_code": "014",
+  "event_qualifier": null,
+  "path_number": null,
+  "path_role": null,
+  "path_transport": null,
+  "system_code": "078",
+  "system_text": "System Recently Armed",
+  "target_user": null,
+  "target_user_name": null,
+  "type_code": null,
+  "user": null,
+  "user_name": null,
+  "zone": null,
+  "zone_name": null
+}
+ack_frame: !!Sj<\xe1\x08;gW\xd0c\xcb`\xd3O/b\x91
+wrapper_crc_hex: FEA1
+wrapper_crc_calc: FEA1
+wrapper_crc_valid: True
+route_token:   
+delivery_field: None
+
+time: 2026-06-14T07:37:33
+transport_mode: secure_s
+account: 12345
+raw_frame: !!S\xb6\xfa\xc0\x8c\x1fbjb0\x96\x07\xa2p@\x97\xb8\xf5\xea\xd9\x05\xab\xa8\xc1\x0fo-\x7f\x85\x81\xa0\x89\xb6b\x9e\x99h\xb8\ra\xf6\xd4O\xd79P\x96\xf8\xb8d\x00\xa1L\x918Y^\x82\x13\x0c\xe7\xa8\xae\x83]\xb1\x88\xf2\xef\x87\x13\xa3\xb5@ l\x968ot\x13 \x0f\xe8.\xa8O\x85\x90\xdf\x7f\x9f#\xd5\xfe"+
+clear_frame: \x02E7A3  12345 &    0Zr\\060\\t "BU\\z 001"Z1              \\a 001"PERIMETER       \\\r
+normalized_frame: E7A3  12345 &    0Zr\\060\\t "BU\\z 001"Z1              \\a 001"PERIMETER       \\
+event_definition: Zr
+event_group: zone
+event_kind: zone_restore
+event_action: restore
+event_type_code: BU
+event_type_name: burglary
+event_target_id: 001
+event_target_name: Z1
+event_actor_id: <none>
+event_actor_name: <none>
+event_summary: Zone 001 Z1 restore (burglary)
+event_raw: Zr\060\t "BU\z 001"Z1              \a 001"PERIMETER       \
+event_fields: [
+  "Zr",
+  "060",
+  "t \"BU",
+  "z 001\"Z1              ",
+  "a 001\"PERIMETER       ",
+  ""
+]
+event_parser: _parse_zone_push_event
+event_parsed: {
+  "actor_user": null,
+  "actor_user_name": null,
+  "area": "001",
+  "area_name": "PERIMETER",
+  "definition": "Zr",
+  "device": null,
+  "device_name": null,
+  "event_code": "060",
+  "target_kind": "zone",
+  "type_code": "BU",
+  "zone": "001",
+  "zone_name": "Z1"
+}
+ack_frame: !!SN\xa1\x9csCj\x94!r\x88K\x0cD\nG\x96
+wrapper_crc_hex: E7A3
+wrapper_crc_calc: E7A3
+wrapper_crc_valid: True
+route_token:   
+delivery_field: None
+
+time: 2026-06-14T07:37:34
+transport_mode: secure_s
+account: 12345
+raw_frame: !!Sw\x02\x07GFGmR{]\x1e\x85\xd1\x1cT\x10a\xa3\x1cy!\x01@*t\xe0\x83t+!k\xdb\xee\xc5\xfa\xd1\xef\xe8]kN\x17\x83L\t\x84H\xa0
+clear_frame: \x0253ED  12345 &    0Zc\\020\\t "DC\\z 001\\\r
+normalized_frame: 53ED  12345 &    0Zc\\020\\t "DC\\z 001\\
+event_definition: Zc
+event_group: zone
+event_kind: zone_state
+event_action: closed
+event_type_code: DC
+event_type_name: door closed
+event_target_id: 001
+event_target_name: <none>
+event_actor_id: <none>
+event_actor_name: <none>
+event_summary: Zone 001 closed
+event_raw: Zc\020\t "DC\z 001\
+event_fields: [
+  "Zc",
+  "020",
+  "t \"DC",
+  "z 001",
+  ""
+]
+event_parser: _parse_zone_push_event
+event_parsed: {
+  "actor_user": null,
+  "actor_user_name": null,
+  "area": null,
+  "area_name": null,
+  "definition": "Zc",
+  "device": null,
+  "device_name": null,
+  "event_code": "020",
+  "target_kind": "zone",
+  "type_code": "DC",
+  "zone": "001",
+  "zone_name": null
+}
+ack_frame: !!S\xff#\xf24\xa4y]\xef\xd2\x01"\xfb\xf2\x9f1\x82
+wrapper_crc_hex: 53ED
+wrapper_crc_calc: 53ED
+wrapper_crc_valid: True
+route_token:   
+delivery_field: None
+
+time: 2026-06-14T07:37:38
+transport_mode: secure_s
+account: 12345
+raw_frame: !!S\xa4\xf2\xda\xd7\x8a5\xc5\xa8FD!\xbf\x9f\xa57\xb3\x9d\x9fth\x00V\xad\x85Lp\xbd\xb3\xca\xa6\xac6\x86\xca\x81\xd0\xfa\x19\xa9\xf7\x17\x9d`Y\xa2:M\x8c
+clear_frame: \x02CDA1  12345 &    1Zs\\014\\t 034\\\r
+normalized_frame: CDA1  12345 &    1Zs\\014\\t 034\\
+event_definition: Zs
+event_group: system
+event_kind: system_message
+event_action: message
+event_type_code: <none>
+event_type_name: Alarm Silenced
+event_target_id: <none>
+event_target_name: <none>
+event_actor_id: <none>
+event_actor_name: <none>
+event_summary: System message Alarm Silenced
+event_raw: Zs\014\t 034\
+event_fields: [
+  "Zs",
+  "014",
+  "t 034",
+  ""
+]
+event_parser: _parse_tagged_push_event
+event_parsed: {
+  "area": null,
+  "area_name": null,
+  "definition": "Zs",
+  "device": null,
+  "device_name": null,
+  "event_code": "014",
+  "event_qualifier": null,
+  "path_number": null,
+  "path_role": null,
+  "path_transport": null,
+  "system_code": "034",
+  "system_text": "Alarm Silenced",
+  "target_user": null,
+  "target_user_name": null,
+  "type_code": null,
+  "user": null,
+  "user_name": null,
+  "zone": null,
+  "zone_name": null
+}
+ack_frame: !!S\x10\xa7T\xd2\xc0\xd1\x96\xc7<\x17\x01p\x91\xdbl\x85
+wrapper_crc_hex: CDA1
+wrapper_crc_calc: CDA1
+wrapper_crc_valid: True
+route_token:   
+delivery_field: None
+
+time: 2026-06-14T07:37:39
+transport_mode: secure_s
+account: 12345
+raw_frame: !!S\xdc%&4w\xfb-e\x90\xa7\xec\xe3\xe7tW\x16\xe31\xd2\xbe\xe3Z\x0f\xca,\x9dO3oC\x1f&\x9b\x94\xa5x\xca\x18\\\xdfc\xcf#\xfadv\xe3p\x80LOvu\x7f\x87\x0f\xb6\xde\xff\xbc\x9dp\xacV8>\x9dx\x86'\xa1=\xffN9{b$s\x1d\xcdT\xe1~\x06\xdf\xf1E\x0e#\xcd\xc6\xa1\x8f\xce\x93
+clear_frame: \x023BEB  12345 &    0Zq\\062\\t "OP\\u 09999"DEFAULT USER    \\a 001"PERIMETER       \\\r
+normalized_frame: 3BEB  12345 &    0Zq\\062\\t "OP\\u 09999"DEFAULT USER    \\a 001"PERIMETER       \\
+event_definition: Zq
+event_group: area
+event_kind: area_state
+event_action: disarmed
+event_type_code: OP
+event_type_name: disarmed
+event_target_id: 001
+event_target_name: PERIMETER
+event_actor_id: 09999
+event_actor_name: DEFAULT USER
+event_summary: Area 001 PERIMETER disarmed by 09999 DEFAULT USER
+event_raw: Zq\062\t "OP\u 09999"DEFAULT USER    \a 001"PERIMETER       \
+event_fields: [
+  "Zq",
+  "062",
+  "t \"OP",
+  "u 09999\"DEFAULT USER    ",
+  "a 001\"PERIMETER       ",
+  ""
+]
+event_parser: _parse_tagged_push_event
+event_parsed: {
+  "area": "001",
+  "area_name": "PERIMETER",
+  "definition": "Zq",
+  "device": null,
+  "device_name": null,
+  "event_code": "062",
+  "event_qualifier": null,
+  "path_number": null,
+  "path_role": null,
+  "path_transport": null,
+  "system_code": null,
+  "system_text": null,
+  "target_user": null,
+  "target_user_name": null,
+  "type_code": "OP",
+  "user": "09999",
+  "user_name": "DEFAULT USER",
+  "zone": null,
+  "zone_name": null
+}
+ack_frame: !!S\xd0>2{\x13f\xcc\x88jZ\xe0\rl\xb0\x8b\xe0
+wrapper_crc_hex: 3BEB
+wrapper_crc_calc: 3BEB
+wrapper_crc_valid: True
+route_token:   
+delivery_field: None
+
+time: 2026-06-14T07:37:40
+transport_mode: secure_s
+account: 12345
+raw_frame: !!S\xda\x96O\xcc\xb5\xec\x9a\xaa\xdf1\xea\xa5\x96\x10\xfbK\xa5\x7f^\xdbqt\x99\x1d\x0c\xcb\xd9\x95\x1b\x9d\xf3\xa1\xe8)\xf3\xd4/\x10\x0b\x9cUie^\xc56\xc2\x18\x80LOvu\x7f\x87\x0f\xb6\xde\xff\xbc\x9dp\xacV\xa5\xa1W!\x04\xdd/\xeb\xbat\x9bN\xd7\xf0\xf6S
+clear_frame: \x02F2B5  12345 &    0Zs\\039\\t 049\\u 09999"DEFAULT USER    \\\r
+normalized_frame: F2B5  12345 &    0Zs\\039\\t 049\\u 09999"DEFAULT USER    \\
+event_definition: Zs
+event_group: system
+event_kind: system_message
+event_action: message
+event_type_code: <none>
+event_type_name: Cancel Signal Received
+event_target_id: <none>
+event_target_name: <none>
+event_actor_id: 09999
+event_actor_name: DEFAULT USER
+event_summary: System message Cancel Signal Received
+event_raw: Zs\039\t 049\u 09999"DEFAULT USER    \
+event_fields: [
+  "Zs",
+  "039",
+  "t 049",
+  "u 09999\"DEFAULT USER    ",
+  ""
+]
+event_parser: _parse_tagged_push_event
+event_parsed: {
+  "area": null,
+  "area_name": null,
+  "definition": "Zs",
+  "device": null,
+  "device_name": null,
+  "event_code": "039",
+  "event_qualifier": null,
+  "path_number": null,
+  "path_role": null,
+  "path_transport": null,
+  "system_code": "049",
+  "system_text": "Cancel Signal Received",
+  "target_user": null,
+  "target_user_name": null,
+  "type_code": null,
+  "user": "09999",
+  "user_name": "DEFAULT USER",
+  "zone": null,
+  "zone_name": null
+}
+ack_frame: !!S\xc2*\xbf\xbc\xa8\xb0\x9aM\xc3\xba\xabB\xce\x7f\xaf\xa7
+wrapper_crc_hex: F2B5
+wrapper_crc_calc: F2B5
+wrapper_crc_valid: True
+route_token:   
+delivery_field: None
+
+time: 2026-06-14T07:37:41
+transport_mode: secure_s
+account: 12345
+raw_frame: !!SW\x9el\xb9C\xb4JvS\xce\x1f\xeeO\x81\x94\x0f\x19\x87\x95\xba\xc1\x1f/R\x8f4\xb9T9\x03Gh\xad1\x9cAO\x06=\x0c!w\x1a\x96o\xf4\x04]K>]\n\xaa\x03)\xe6\x9f\xf8\xdf\x07\x1f1 ^\x83\x1e7\xff?\xd2C\xa5\xf3@7\xb3G}\xc34\x83\xedm\x7f7\xef\xcb\xd8q\xb8\tX2Zw\xe8
+clear_frame: \x027E52  12345 &    1Zj\\062\\t "DA\\v 001"DEVICE  1       \\u 09999"DEFAULT USER    \\\r
+normalized_frame: 7E52  12345 &    1Zj\\062\\t "DA\\v 001"DEVICE  1       \\u 09999"DEFAULT USER    \\
+event_definition: Zj
+event_group: access
+event_kind: access_event
+event_action: granted
+event_type_code: DA
+event_type_name: door access granted
+event_target_id: 001
+event_target_name: DEVICE  1
+event_actor_id: 09999
+event_actor_name: DEFAULT USER
+event_summary: Device 001 DEVICE  1 door access granted for 09999 DEFAULT USER
+event_raw: Zj\062\t "DA\v 001"DEVICE  1       \u 09999"DEFAULT USER    \
+event_fields: [
+  "Zj",
+  "062",
+  "t \"DA",
+  "v 001\"DEVICE  1       ",
+  "u 09999\"DEFAULT USER    ",
+  ""
+]
+event_parser: _parse_access_push_event
+event_parsed: {
+  "actor_user": "09999",
+  "actor_user_name": "DEFAULT USER",
+  "definition": "Zj",
+  "device": "001",
+  "device_name": "DEVICE  1",
+  "entered_code": null,
+  "event_code": "062",
+  "type_code": "DA"
+}
+ack_frame: !!S\xfa#?n!CZ\x9b\xce\x03\xa5\xc1\x11\x84\xac\x1f
+wrapper_crc_hex: 7E52
+wrapper_crc_calc: 7E52
+wrapper_crc_valid: True
+route_token:   
+delivery_field: None
+
+time: 2026-06-14T07:37:42
+transport_mode: secure_s
+account: 12345
+raw_frame: !!S\x0ew\xfb\xd4\x8b\x92\x1b8\x9e\x9f\xb9\x8a<^\xeei\x01\x97\xaeZ1-\xb1\x96^\xb1\xf2|\x1c:\xfe/\xad1\x9cAO\x06=\x0c!w\x1a\x96o\xf4\x04]K>]\n\xaa\x03)\xe6\x9f\xf8\xdf\x07\x1f1 ^\x83\x1e7\xff?\xd2C\xa5\xf3@7\xb3G}\xc34\x83\xedm\x7f7\xef\xcb\xd8q\xb8\tX2Zw\xe8
+clear_frame: \x02BE12  12345 &    0Zj\\062\\t "DA\\v 001"DEVICE  1       \\u 09999"DEFAULT USER    \\\r
+normalized_frame: BE12  12345 &    0Zj\\062\\t "DA\\v 001"DEVICE  1       \\u 09999"DEFAULT USER    \\
+event_definition: Zj
+event_group: access
+event_kind: access_event
+event_action: granted
+event_type_code: DA
+event_type_name: door access granted
+event_target_id: 001
+event_target_name: DEVICE  1
+event_actor_id: 09999
+event_actor_name: DEFAULT USER
+event_summary: Device 001 DEVICE  1 door access granted for 09999 DEFAULT USER
+event_raw: Zj\062\t "DA\v 001"DEVICE  1       \u 09999"DEFAULT USER    \
+event_fields: [
+  "Zj",
+  "062",
+  "t \"DA",
+  "v 001\"DEVICE  1       ",
+  "u 09999\"DEFAULT USER    ",
+  ""
+]
+event_parser: _parse_access_push_event
+event_parsed: {
+  "actor_user": "09999",
+  "actor_user_name": "DEFAULT USER",
+  "definition": "Zj",
+  "device": "001",
+  "device_name": "DEVICE  1",
+  "entered_code": null,
+  "event_code": "062",
+  "type_code": "DA"
+}
+ack_frame: !!Sb@\xf9\x8a\xd33\xe6\xa6-\x01\x9b\xafg\xfe\xdb\x92
+wrapper_crc_hex: BE12
+wrapper_crc_calc: BE12
+wrapper_crc_valid: True
+route_token:   
+delivery_field: None
+
